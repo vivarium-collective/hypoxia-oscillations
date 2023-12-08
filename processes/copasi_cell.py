@@ -19,79 +19,45 @@ class COPASICell(Process):
         # Load the single cell model into Basico
         self.copasi_model_object = load_model(self.parameters['model_file'])
         all_species = get_species(model=self.copasi_model_object).index.tolist()
-        membrane_species = [
-            f'{mol_id}{side_id}' for side_id in range(1, self.parameters['n_sides'] + 1)
-            for mol_id in self.parameters['boundary_molecules']]
-        external_species = [
+        self.external_species = [
             f'{mol_id}{side_id}_ext' for side_id in range(1, self.parameters['n_sides'] + 1)
             for mol_id in self.parameters['boundary_molecules']]
         self.internal_species = [
-            mol_id for mol_id in all_species if mol_id not in membrane_species + external_species]
+            mol_id for mol_id in all_species if mol_id not in self.external_species]
 
 
     def ports_schema(self):
         return {
-            'local_concentrations': {},
-            'internal': {},
+            'external': {mol_id: {} for mol_id in self.external_species},
+            'internal': {mol_id: {} for mol_id in self.internal_species},  # TODO output only
         }
-        # ports = {}
-        # for side_id in range(1, self.parameters['n_sides'] + 1):
-        #     membrane_species = {
-        #         f'{mol_id}{side_id}': {
-        #             '_default': float(get_species(
-        #                 name=f'{mol_id}{side_id}', exact=True, model=self.copasi_model_object).concentration[0]),
-        #             '_updater': 'set',
-        #             '_emit': True,
-        #             '_output': True
-        #         } for mol_id in self.parameters['boundary_molecules']}
-        #     external_species = {
-        #         f'{mol_id}{side_id}_ext': {
-        #             '_default': float(get_species(
-        #                 name=f'{mol_id}{side_id}_ext', exact=True, model=self.copasi_model_object).concentration[0]),
-        #             '_updater': 'set',
-        #             '_emit': True,
-        #             '_output': False,
-        #         } for mol_id in self.parameters['boundary_molecules']}
-        #
-        #     ports[str(side_id)] = {**membrane_species, **external_species}
-        #
-        # ports['internal_species'] = {
-        #         mol_id: {
-        #             '_default': float(get_species(
-        #                 name=mol_id, exact=True, model=self.copasi_model_object).concentration[0]),
-        #             '_updater': 'set',
-        #             '_emit': True,
-        #             '_output': True
-        #         } for mol_id in self.internal_species
-        # }
-        # return ports
 
     def next_update(self, endtime, states):
 
-        uptake = state['uptake']
+        internal = states['internal']
+        external = states['external']
 
-        # # get the new external states (18 states) from the ports
-        # # and set them in the model
-        # for side_id, molecules in states.items():
-        #     for mol_id, value in molecules.items():
-        #         if mol_id.endswith('_ext'):
-        #             set_species(name=mol_id, initial_concentration=value, model=self.copasi_model_object)
+        # and set them in the model
+        # for mol_id, value in internal.items():
+        #     set_species(name=mol_id, initial_concentration=value, model=self.copasi_model_object)
+        for mol_id, value in external.items():
+            set_species(name=mol_id, initial_concentration=value, model=self.copasi_model_object)
 
         # run model for "endtime" length; we only want the state at the end of endtime, if we need more we can set intervals to a larger value
         timecourse = run_time_course(duration=endtime, intervals=1, update_model=True, model=self.copasi_model_object)
 
         # extract end values of concentrations from the model and set them in results (18 states)
         results = {}
-        for side_id in range(1, self.parameters['n_sides']+1):
-            mol_ids = [f'{i}{side_id}' for i in self.parameters['boundary_molecules']]
-            # get these values from the copasi model
-            results[str(side_id)] = {
-                mol_id: float(get_species(name=mol_id, exact=True, model=self.copasi_model_object).concentration[0])
-                for mol_id in mol_ids}
-
-        results['internal_species'] = {
-            mol_id: float(get_species(name=mol_id, exact=True, model=self.copasi_model_object).concentration[0])
-            for mol_id in self.internal_species}
+        # for side_id in range(1, self.parameters['n_sides']+1):
+        #     mol_ids = [f'{i}{side_id}' for i in self.parameters['boundary_molecules']]
+        #     # get these values from the copasi model
+        #     results[str(side_id)] = {
+        #         mol_id: float(get_species(name=mol_id, exact=True, model=self.copasi_model_object).concentration[0])
+        #         for mol_id in mol_ids}
+        #
+        # results['internal_species'] = {
+        #     mol_id: float(get_species(name=mol_id, exact=True, model=self.copasi_model_object).concentration[0])
+        #     for mol_id in self.internal_species}
 
         return results
 
