@@ -19,15 +19,20 @@ class SimpleCell(Process):
         'HIF_initial': 0.1,
         'Lactate_initial': 0.2,
         'GFP_initial': 0,
+
+        # TODO transport
+        'Lactate_export': 0.0,
+        'Lactate_import': 1.0,
     }
 
     def __init__(self, parameters=None):
         super().__init__(parameters)
-        self.species_list = ['HIF', 'Lactate', 'GFP', 'oxygen']
+        self.internal_species_list = ['HIF', 'Lactate', 'GFP', 'oxygen']
+        self.external_species_list = ['Lactate_ext']
 
     def initial_state(self, config=None):
         return {
-            'species': {
+            'internal_species': {
                 'HIF': self.parameters['HIF_initial'],
                 'Lactate': self.parameters['Lactate_initial'],
                 'GFP': self.parameters['GFP_initial'],
@@ -36,29 +41,38 @@ class SimpleCell(Process):
     
     def ports_schema(self):
         return {
-            'species': {
+            'internal_species': {
                 species_id: {
                     '_default': 0.0,
                     '_emit': True,
-                } for species_id in self.species_list},
+                } for species_id in self.internal_species_list
+            },
+            'external_species': {}
         }
 
     def next_update(self, interval, states):
         # get the states
-        species = states['species']
+        internal_species = states['internal_species']
+
+        """
+        dHIF = ksxs + ksx*(HIF^2)/(kpx + HIF^2) - kdx*HIF - kdsx*HIF*Lactate
+        dLactate = ksy*HIF^2/(kpy + HIF^2) - kdy*Lactate
+        dGFP = Vg*HIF^3/(kg+HIF^3) - dg*GFP
+        """
+
 
         # run the simulation
-        dHIF = (self.parameters['k_sxs'] + self.parameters['k_sx'] * (species['HIF']**2) /
-                (self.parameters['k_px'] + species['HIF']**2) - self.parameters['k_dx'] * species['HIF'] -
-                self.parameters['k_dsx'] * species['HIF'] * species['Lactate'])
-        dLactate = (self.parameters['k_sy'] * species['HIF']**2 / (self.parameters['k_py'] + species['HIF']**2) -
-                    self.parameters['k_dy'] * species['Lactate'])
-        dGFP = (self.parameters['V_g'] * species['HIF']**3 / (self.parameters['k_g'] + species['HIF']**3) -
-                self.parameters['d_g'] * species['GFP'])
+        dHIF = (self.parameters['k_sxs'] + self.parameters['k_sx'] * (internal_species['HIF']**2) /
+                (self.parameters['k_px'] + internal_species['HIF']**2) - self.parameters['k_dx'] * internal_species['HIF'] -
+                self.parameters['k_dsx'] * internal_species['HIF'] * internal_species['Lactate'])
+        dLactate = (self.parameters['k_sy'] * internal_species['HIF']**2 / (self.parameters['k_py'] + internal_species['HIF']**2) -
+                    self.parameters['k_dy'] * internal_species['Lactate'])
+        dGFP = (self.parameters['V_g'] * internal_species['HIF']**3 / (self.parameters['k_g'] + internal_species['HIF']**3) -
+                self.parameters['d_g'] * internal_species['GFP'])
 
         # retrieve the results
         return {
-            'species': {
+            'internal_species': {
                 'HIF': dHIF * interval,
                 'Lactate': dLactate * interval,
                 'GFP': dGFP * interval
@@ -70,14 +84,18 @@ def test_cell():
     total_time = 1000
 
     # create the process
-    parameters = {'timestep': 0.1}
+    parameters = {
+        'timestep': 0.1,
+        'k_sx': 1.0,  # default is 1. bifurcation ~ 0.7, 1.4
+        'Lactate_initial': 0.001 # default 0.2
+    }
     cell = SimpleCell(parameters=parameters)
 
     # put it in a simulation
     sim = Engine(
         initial_state=cell.initial_state(),
         processes={'cell': cell},
-        topology={'cell': {'species': ('species',)}}
+        topology={'cell': {'internal_species': ('internal_species',)}}
     )
 
     # run simulation
