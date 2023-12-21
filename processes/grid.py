@@ -1,14 +1,15 @@
-from vivarium.core.process import Process, Step
+from vivarium.core.process import Process
 
 
 class Grid(Process):
     defaults = {
         'bounds': [10, 10],  # TODO -- what units?
-        'bin_size': 1,
+        'bin_size': 1.0,
+        'depth': 1.0,
         'field_molecules': [
             'oxygen',
             'lactate',
-            'glutamine',
+            # 'glutamine',
         ]
     }
 
