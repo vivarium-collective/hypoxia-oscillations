@@ -17,6 +17,8 @@ from vivarium.core.process import Process
 from vivarium.core.engine import Engine, pf
 from vivarium.library.units import units, remove_units
 
+from plots.field import plot_fields, plot_fields_temporal
+
 
 # laplacian kernel for diffusion
 LAPLACIAN_2D = np.array([[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]])
@@ -52,13 +54,13 @@ class Diffusion(Process):
         'molecules': ['lactate', 'oxygen'],
 
         # diffusion
-        'default_diffusion_dt': 0.1,
+        'default_diffusion_dt': 0.001,
         'default_diffusion_rate': 1e-1,
 
         # specific diffusion rates
         'diffusion': {
-            'lactate': 1E-3,  # units.cm * units.cm / units.day,
-            'oxygen': 1E-1,  # units.cm * units.cm / units.day,
+            'lactate': 1E-1,  # units.cm * units.cm / units.day,
+            'oxygen': 1E0,  # units.cm * units.cm / units.day,
         },
     }
 
@@ -102,6 +104,15 @@ class Diffusion(Process):
         self.bin_volume = get_bin_volume([bins_x, bins_y], self.bounds, self.depth)
 
     def initial_state(self, config=None):
+        """get initial state of the fields
+
+        Args:
+            * config (dict): with optional keys "random" or "uniform".
+                * "random" key maps to a maximum value for the field, which gets filled with values between [0, max].
+                * "uniform" key maps to a value that will fill the entire field
+        Returns:
+            * fields (dict) with {mol_id: 2D np.array}
+        """
         if config is None:
             config = {}
         if 'random' in config:
@@ -231,8 +242,8 @@ class Diffusion(Process):
 
     def random_field(self):
         return np.random.rand(
-            self.parameters['n_bins'][0],
-            self.parameters['n_bins'][1])
+            self.n_bins[0],
+            self.n_bins[1])
 
     def diffuse(self, field, timestep, diffusion_rate):
         """ diffuse a single field """
@@ -258,16 +269,21 @@ class Diffusion(Process):
 
 def test_fields():
     total_time = 30
+    size = 5
 
     # initialize process
-    fields = Diffusion()
+    config = {
+        'bounds': [size, size],
+        'bin_size': 1
+    }
+    fields = Diffusion(config)
 
     # make the process
     field = Diffusion()
 
     # put it in a simulation
     sim = Engine(
-        initial_state=field.initial_state({}),
+        initial_state=field.initial_state({'random': 1.0}),
         processes={'diffusion_process': field},
         topology={'diffusion_process': {
             'fields': ('fields',),
@@ -282,8 +298,14 @@ def test_fields():
     # get the results
     data = sim.emitter.get_timeseries()
 
-    # print results
-    print(pf(data))
+    # # print results
+    # print(pf(data))
+
+    # plot
+    first_fields = {key: matrix[0] for key, matrix in data['fields'].items()}
+    plot_fields(first_fields, out_dir='out', filename='fields')
+
+    plot_fields_temporal(data['fields'], nth_timestep=5, out_dir='out', filename='fields_temporal')
 
 
 if __name__ == '__main__':
