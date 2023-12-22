@@ -212,7 +212,7 @@ class Diffusion(Process):
 
     def get_bin_site(self, location):
         return get_bin_site(
-            [l.to(LENGTH_UNIT).magnitude for l in location],
+            [l for l in location],
             self.n_bins,
             self.bounds)
 

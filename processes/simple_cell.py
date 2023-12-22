@@ -10,22 +10,22 @@ class SimpleCell(Process):
         'k_HIF_pos_feedback': 1,  # k_px
         'k_HIF_deg_basal': 0.2,  # k_dx
         'k_HIF_deg_lactate': 1,  # k_dsx
-        'k_Lactate_production': 0.01,  # k_sy
-        'k_Lactate_production_reg': 1,  # k_py
-        'k_Lactate_deg_basal': 0.01,  # k_dy
+        'k_lactate_production': 0.01,  # k_sy
+        'k_lactate_production_reg': 1,  # k_py
+        'k_lactate_deg_basal': 0.01,  # k_dy
         'k_GFP_production_constantFP_production': 1,  # V_g
         'k_GFP_production_constant': 0.05,  # k_g
         'k_GFP_deg': 0.1,  # d_g
 
         # initial states
         'HIF_initial': 0.1,  #
-        'Lactate_initial': 0.2,  #
-        'external_Lactate_initial': 0.1,
+        'lactate_initial': 0.2,  #
+        'external_lactate_initial': 0.1,
         'GFP_initial': 0.0,  #
 
         # TODO transport
-        'k_MCT1': 1E-3,  # Lactate import
-        'k_MCT4': 1E-3,  # Lactate export
+        'k_MCT1': 1E-3,  # lactate import
+        'k_MCT4': 1E-3,  # lactate export
 
         # oxygen consumption
         'k_O2_consumption': 1.0,
@@ -35,19 +35,21 @@ class SimpleCell(Process):
 
     def __init__(self, parameters=None):
         super().__init__(parameters)
-        self.internal_species_list = ['HIF', 'Lactate', 'GFP', 'oxygen']
-        self.external_species_list = ['Lactate', 'oxygen']
+        self.internal_species_list = ['HIF', 'lactate', 'GFP', 'oxygen']
+        self.external_species_list = ['lactate', 'oxygen']
 
     def initial_state(self, config=None):
         return {
             'internal_species': {
                 'HIF': config.get('HIF_initial') or self.parameters['HIF_initial'],
-                'Lactate': config.get('Lactate_initial') or self.parameters['Lactate_initial'],
+                'lactate': config.get('lactate_initial') or self.parameters['lactate_initial'],
                 'GFP': config.get('GFP_initial') or self.parameters['GFP_initial'],
             },
-            'external_species': {
-                'Lactate': config.get('external_Lactate_initial') or self.parameters['external_Lactate_initial'],
-                'oxygen': config.get('external_oxygen_initial') or self.parameters['external_oxygen_initial'],
+            'boundary': {
+                'external': {
+                    'lactate': config.get('external_lactate_initial') or self.parameters['external_lactate_initial'],
+                    'oxygen': config.get('external_oxygen_initial') or self.parameters['external_oxygen_initial'],
+                }
             }
         }
     
@@ -59,32 +61,34 @@ class SimpleCell(Process):
                     '_emit': True,
                 } for species_id in self.internal_species_list
             },
-            'external_species': {
-                species_id: {
-                    '_default': 0.0,
-                    '_emit': True,
-                } for species_id in self.external_species_list
+            'boundary': {
+                'external': {
+                    species_id: {
+                        '_default': 0.0,
+                        '_emit': True,
+                    } for species_id in self.external_species_list
+                }
             }
         }
 
     def next_update(self, interval, states):
         # get the states
         internal_species = states['internal_species']
-        external_species = states['external_species']
+        external_species = states['boundary']['external']
 
         """
-        dHIF = ksxs + ksx*(HIF^2)/(kpx + HIF^2) - kdx*HIF - kdsx*HIF*Lactate
-        dLactate = ksy*HIF^2/(kpy + HIF^2) - kdy*Lactate
+        dHIF = ksxs + ksx*(HIF^2)/(kpx + HIF^2) - kdx*HIF - kdsx*HIF*lactate
+        dlactate = ksy*HIF^2/(kpy + HIF^2) - kdy*lactate
         dGFP = Vg*HIF^3/(kg+HIF^3) - dg*GFP
         """
 
         # run the simulation
         dHIF = ((self.parameters['k_HIF_production_basal'] + self.parameters['k_HIF_production_max'] * (internal_species['HIF']**2) /
                 (self.parameters['k_HIF_pos_feedback'] + internal_species['HIF']**2) - self.parameters['k_HIF_deg_basal'] * internal_species['HIF'] * external_species['oxygen'] -
-                self.parameters['k_HIF_deg_lactate'] * internal_species['HIF'] * internal_species['Lactate']))
-        dLactate = (self.parameters['k_Lactate_production'] * internal_species['HIF']**2 / (self.parameters['k_Lactate_production_reg'] + internal_species['HIF']**2) -
-                    self.parameters['k_Lactate_deg_basal'] * internal_species['Lactate']) + (
-                    self.parameters['k_MCT1'] * external_species['Lactate'] - self.parameters['k_MCT4'] * internal_species['Lactate'])  # Get improved function fo Lactate transport
+                self.parameters['k_HIF_deg_lactate'] * internal_species['HIF'] * internal_species['lactate']))
+        dLactate = (self.parameters['k_lactate_production'] * internal_species['HIF']**2 / (self.parameters['k_lactate_production_reg'] + internal_species['HIF']**2) -
+                    self.parameters['k_lactate_deg_basal'] * internal_species['lactate']) + (
+                    self.parameters['k_MCT1'] * external_species['lactate'] - self.parameters['k_MCT4'] * internal_species['lactate'])  # Get improved function fo lactate transport
         dGFP = (self.parameters['k_GFP_production_constantFP_production'] * internal_species['HIF']**3 / (self.parameters['k_GFP_production_constant'] + internal_species['HIF']**3) -
                 self.parameters['k_GFP_deg'] * internal_species['GFP'])
         # dO2 = ()
@@ -93,7 +97,7 @@ class SimpleCell(Process):
         return {
             'internal_species': {
                 'HIF': dHIF * interval,
-                'Lactate': dLactate * interval,
+                'lactate': dLactate * interval,
                 'GFP': dGFP * interval
             },
             'external_species': {
@@ -109,8 +113,8 @@ def test_cell():
     parameters = {
         'timestep': 0.1,
         'k_HIF_production_max': 0.9,  # default is 1. bifurcation ~ 0.7, 1.4
-        'Lactate_initial': 0.001,  # default 0.2
-        'external_Lactate_initial': 0.1,
+        'lactate_initial': 0.001,  # default 0.2
+        'external_lactate_initial': 0.1,
         'external_oxygen_initial': 1.1,
     }
     cell = SimpleCell(parameters=parameters)
