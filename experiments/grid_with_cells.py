@@ -1,8 +1,12 @@
+"""
+Grid Experiment
+"""
 from vivarium.core.engine import Engine, pf
-from processes.simple_cell import SimpleCell
+from vivarium.plots.simulation_output import plot_simulation_output
 from processes.diffusion_field import DiffusionField
 from plots.field import plot_fields_temporal
-from vivarium.plots.simulation_output import plot_simulation_output
+from composites.composite_cell import CompositeCell
+
 
 DEFAULT_BOUNDS = [4, 4]
 DEFAULT_BIN_SIZE = 1
@@ -18,9 +22,9 @@ def run_cell_grid(
     bin_size = bin_size or DEFAULT_BIN_SIZE
 
     # initialize composite dicts
-    processes = {'cells': {}}
-    topology = {'cells': {}}
-    initial_state = {'cells': {}}
+    grid_processes = {'cells': {}}
+    grid_topology = {'cells': {}}
+    grid_initial_state = {'cells': {}}
 
     # initialize diffusion process
     config = {
@@ -34,39 +38,42 @@ def run_cell_grid(
     diffusion_process = DiffusionField(config)
 
     # add diffusion process to composite
-    processes['diffusion'] = diffusion_process
-    topology['diffusion'] = {
+    grid_processes['diffusion'] = diffusion_process
+    grid_topology['diffusion'] = {
         'fields': ('fields',),
         'dimensions': ('dimensions',),
         'cells': ('cells',),
     }
 
+    # make cell composer
+    config = {}
+    cell_composer = CompositeCell(config)
+
     # add cells
     for x in range(bounds[0]):
         for y in range(bounds[1]):
             # make the cell
-            parameters = {}
-            cell_process = SimpleCell(parameters)
+            cell_id = f'[{x},{y}]'
+            cell = cell_composer.generate({'cell_id': cell_id})
 
-            # add cell to composite
-            cell_name = f'[{x},{y}]'
-            processes['cells'][cell_name] = {'cell_process': cell_process}
-            topology['cells'][cell_name] = {
-                'cell_process': {
-                    'internal_species': ('internal_store',),
-                    'boundary': ('boundary',),
-                }}
-            initial_state['cells'][cell_name] = {'boundary': {'location': [x*bin_size,y*bin_size]}}
+            # add cell to grid
+            grid_processes['cells'][cell_id] = cell['processes']
+            grid_topology['cells'][cell_id] = cell['topology']
+            grid_initial_state['cells'][cell_id] = {
+                'boundary': {
+                    'location': [x*bin_size,y*bin_size]
+                }
+            }
 
     # get initial state from diffusion process
     field_state = diffusion_process.initial_state({'random': 1.0})
-    initial_state['fields'] = field_state['fields']
+    grid_initial_state['fields'] = field_state['fields']
 
     # initialize simulation
     sim = Engine(
-        initial_state=initial_state,
-        processes=processes,
-        topology=topology
+        initial_state=grid_initial_state,
+        processes=grid_processes,
+        topology=grid_topology
     )
 
     # run simulation
