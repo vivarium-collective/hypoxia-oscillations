@@ -94,7 +94,10 @@ def run_cell_grid(
     temporal_fig.show()
 
     # plot results
-    settings = {'max_rows': bounds[0]*5}
+    settings = {
+        'max_rows': bounds[0] * 5,
+        'skip_ports': ['fields', 'dimensions']
+    }
     results_fig = plot_simulation_output(
         data,
         settings=settings,

@@ -16,18 +16,16 @@ from vivarium.core.process import Step
 from vivarium.library.units import units, remove_units
 
 
-CONCENTRATION_UNIT = units.ng / units.mL  # alternative (units.mmol / units.L) concentration would not use molecular_weight
-LENGTH_UNIT = units.um
-UNITLESS_AVOGADRO = constants.N_A
+AVOGADRO = constants.N_A
 
 
 class LocalField(Step):
-    """Take exchanges and apply them to a field at the agents location"""
+    """Take exchanges and apply them to a field at the cell's location"""
 
     name = 'local_field'
     defaults = {
         'molecular_weight': {},
-        'concentration_unit': CONCENTRATION_UNIT
+        # 'concentration_unit': CONCENTRATION_UNIT
     }
 
     def __init__(self, parameters=None):
@@ -40,26 +38,18 @@ class LocalField(Step):
     def ports_schema(self):
          return {
             'exchanges': {
-                '*': {
-                    '_default': 0,
-                }
+                '*': {'_default': 0}
             },
             'location': {
-                '_default': [0.5 * LENGTH_UNIT, 0.5 * LENGTH_UNIT]
+                '_default': [0.5, 0.5]
             },
             'fields': {
                 '*': {'_default': np.ones(1)}
             },
             'dimensions': {
-                'bounds': {
-                    '_default': [1, 1],
-                },
-                'n_bins': {
-                    '_default': [1, 1],
-                },
-                'depth': {
-                    '_default': 1,
-                },
+                'bounds': {'_default': [1, 1]},
+                'n_bins': {'_default': [1, 1]},
+                'depth': {'_default': 1},
             }
         }
 
@@ -82,7 +72,7 @@ class LocalField(Step):
         for mol_id, counts in exchanges.items():
             delta_fields[mol_id] = np.zeros(
                 (n_bins[0], n_bins[1]), dtype=np.float64)
-            concentration = counts / (bin_volume_liters * UNITLESS_AVOGADRO) * self.conc_conversion[mol_id]
+            concentration = counts / (bin_volume_liters * AVOGADRO) * self.conc_conversion[mol_id]
             delta_fields[mol_id][bin_site[0], bin_site[1]] += concentration
             reset_exchanges[mol_id] = {
                 '_value': 0,
