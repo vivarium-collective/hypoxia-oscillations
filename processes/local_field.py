@@ -16,7 +16,14 @@ from vivarium.core.process import Step
 from vivarium.library.units import units, remove_units
 
 
+CONCENTRATION_UNIT = units.ng / units.mL  # (units.mmol / units.L) concentration would not use molecular_weight
 AVOGADRO = constants.N_A
+MOLECULAR_WEIGHTS = {
+    'HIF': 93000 * units.g / units.mol,
+    'lactate': 90.08 * units.g / units.mol,
+    'GFP': 27000 * units.g / units.mol,
+    'oxygen': 31.999 * units.g / units.mol,
+}
 
 
 class LocalField(Step):
@@ -24,8 +31,8 @@ class LocalField(Step):
 
     name = 'local_field'
     defaults = {
-        'molecular_weight': {},
-        # 'concentration_unit': CONCENTRATION_UNIT
+        'molecular_weight': MOLECULAR_WEIGHTS,
+        'concentration_unit': CONCENTRATION_UNIT
     }
 
     def __init__(self, parameters=None):

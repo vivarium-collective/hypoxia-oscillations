@@ -24,7 +24,7 @@ class CompositeCell(Composer):
         local_field = LocalField()
         return {
             'cell_process': cell_process,
-            # 'local_field': local_field,
+            'local_field': local_field,
         }
 
     def generate_topology(self, config):
@@ -37,10 +37,10 @@ class CompositeCell(Composer):
                 'internal_species': ('internal_store',),
                 'boundary': ('boundary',),
             },
-            # 'local_field': {
-            #     'exchanges': boundary_path + ('exchange',),
-            #     'location': boundary_path + ('location',),
-            #     'fields': field_path,
-            #     'dimensions': dimensions_path,
-            # },
+            'local_field': {
+                'exchanges': boundary_path + ('exchange',),
+                'location': boundary_path + ('location',),
+                'fields': field_path,
+                'dimensions': dimensions_path,
+            },
         }

@@ -1,5 +1,6 @@
 import os
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import numpy as np
 
 
@@ -54,11 +55,9 @@ def plot_fields_temporal(fields_dict, nth_timestep=1, out_dir=None, filename='fi
     max_time_points = max(len(matrices) for matrices in fields_dict.values())
     num_columns = (max_time_points - 1) // nth_timestep + 1  # Calculate number of columns after applying nth_timestep
 
-    fig, axes = plt.subplots(num_fields, num_columns, figsize=(5 * num_columns, 5 * num_fields))
-
-    # Ensure axes is a 2D array for consistency
-    if num_fields == 1 or num_columns == 1:
-        axes = np.array(axes).reshape(num_fields, num_columns)
+    # Create a GridSpec layout with an extra column for colorbars
+    fig = plt.figure(figsize=(5 * num_columns, 5 * num_fields))
+    gs = gridspec.GridSpec(num_fields, num_columns + 1, width_ratios=[*([1] * num_columns), 0.05])
 
     for i, (field_name, matrices) in enumerate(fields_dict.items()):
         # Determine the min and max values across all matrices for this field
@@ -66,17 +65,16 @@ def plot_fields_temporal(fields_dict, nth_timestep=1, out_dir=None, filename='fi
         field_max = max(np.max(matrix) for matrix in matrices)
 
         for j in range(0, len(matrices), nth_timestep):
-            ax = axes[i, j // nth_timestep]
-            cax = ax.imshow(np.array(matrices[j]), cmap='viridis', interpolation='nearest', vmin=field_min,
-                            vmax=field_max)
+            ax = plt.subplot(gs[i, j // nth_timestep])
+            cax = ax.imshow(np.array(matrices[j]), cmap='viridis', interpolation='nearest', vmin=field_min, vmax=field_max)
             if j == 0:
                 ax.set_ylabel(field_name)
             if i == 0:
                 ax.set_title(f"Time {j}")
 
-            # Add colorbar to the rightmost subplot of each row
-            if j // nth_timestep == num_columns - 1:
-                fig.colorbar(cax, ax=ax)
+        # Add colorbar to the last column for each row
+        cbar_ax = plt.subplot(gs[i, -1])
+        fig.colorbar(cax, cax=cbar_ax)
 
     plt.tight_layout()
 

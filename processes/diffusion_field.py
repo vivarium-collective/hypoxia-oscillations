@@ -154,8 +154,8 @@ class DiffusionField(Process):
                     '_updater': 'set',
                     '_emit': True,
                 },
-                'bin_size': {
-                    '_value': self.parameters['bin_size'],
+                'n_bins': {
+                    '_value': self.n_bins,
                     '_updater': 'set',
                     '_emit': True,
                 },
