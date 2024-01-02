@@ -62,7 +62,15 @@ class SimpleCell(Process):
                 } for species_id in self.internal_species_list
             },
             'boundary': {
+                # external is how the cell sees its surroundings
                 'external': {
+                    species_id: {
+                        '_default': 0.0,
+                        '_emit': True,
+                    } for species_id in self.external_species_list
+                },
+                # exchange is how the cell updates its surroundings
+                'exchange': {
                     species_id: {
                         '_default': 0.0,
                         '_emit': True,
@@ -72,26 +80,53 @@ class SimpleCell(Process):
         }
 
     def next_update(self, interval, states):
-        # get the states
-        internal_species = states['internal_species']
-        external_species = states['boundary']['external']
-
         """
         dHIF = ksxs + ksx*(HIF^2)/(kpx + HIF^2) - kdx*HIF - kdsx*HIF*lactate
         dlactate = ksy*HIF^2/(kpy + HIF^2) - kdy*lactate
         dGFP = Vg*HIF^3/(kg+HIF^3) - dg*GFP
         """
 
-        # run the simulation
-        dHIF = ((self.parameters['k_HIF_production_basal'] + self.parameters['k_HIF_production_max'] * (internal_species['HIF']**2) /
-                (self.parameters['k_HIF_pos_feedback'] + internal_species['HIF']**2) - self.parameters['k_HIF_deg_basal'] * internal_species['HIF'] * external_species['oxygen'] -
-                self.parameters['k_HIF_deg_lactate'] * internal_species['HIF'] * internal_species['lactate']))
-        dLactate = (self.parameters['k_lactate_production'] * internal_species['HIF']**2 / (self.parameters['k_lactate_production_reg'] + internal_species['HIF']**2) -
-                    self.parameters['k_lactate_deg_basal'] * internal_species['lactate']) + (
-                    self.parameters['k_MCT1'] * external_species['lactate'] - self.parameters['k_MCT4'] * internal_species['lactate'])  # Get improved function fo lactate transport
-        dGFP = (self.parameters['k_GFP_production_constantFP_production'] * internal_species['HIF']**3 / (self.parameters['k_GFP_production_constant'] + internal_species['HIF']**3) -
-                self.parameters['k_GFP_deg'] * internal_species['GFP'])
-        # dO2 = ()
+        # get the variables
+        hif_in = states['internal_species']['HIF']
+        oxygen_ex = states['boundary']['external']['oxygen']
+        lactate_in = states['internal_species']['lactate']
+        lactate_ex = states['boundary']['external']['lactate']
+        gfp_in = states['internal_species']['GFP']
+
+        # Calculate the rate of change of HIF
+        hif_production = (
+                self.parameters['k_HIF_production_basal'] +
+                self.parameters['k_HIF_production_max'] * hif_in ** 2 /
+                (self.parameters['k_HIF_pos_feedback'] + hif_in ** 2)
+        )
+        hif_degradation = (
+                self.parameters['k_HIF_deg_basal'] * hif_in * oxygen_ex +
+                self.parameters['k_HIF_deg_lactate'] * hif_in * lactate_in
+        )
+        dHIF = hif_production - hif_degradation
+
+        # Calculate the rate of change of Lactate
+        lactate_production = (
+                self.parameters['k_lactate_production'] * hif_in ** 2 /
+                (self.parameters['k_lactate_production_reg'] + hif_in ** 2)
+        )
+        lactate_degradation = self.parameters['k_lactate_deg_basal'] * lactate_in
+        lactate_transport = (  # TODO: improve function for lactate transport
+                self.parameters['k_MCT1'] * lactate_ex -
+                self.parameters['k_MCT4'] * lactate_in
+        )
+        dLactate = lactate_production - lactate_degradation + lactate_transport
+
+        # Calculate the rate of change of GFP
+        gfp_production = (
+                self.parameters['k_GFP_production_constantFP_production'] * hif_in ** 3 /
+                (self.parameters['k_GFP_production_constant'] + hif_in ** 3)
+        )
+        gfp_degradation = self.parameters['k_GFP_deg'] * gfp_in
+        dGFP = gfp_production - gfp_degradation
+
+        # TODO -- oxygen
+        dO2 = ()
 
         # retrieve the results
         return {
@@ -137,12 +172,14 @@ def test_cell():
 
     # plot results
     settings = {}
-    plot_simulation_output(
+    fig = plot_simulation_output(
         data,
         settings=settings,
         out_dir='out',
         filename='results'
     )
+    fig.show()
+
 
 if __name__ == '__main__':
     test_cell()

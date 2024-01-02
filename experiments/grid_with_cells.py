@@ -25,7 +25,11 @@ def run_cell_grid(
     # initialize diffusion process
     config = {
         'bounds': bounds,
-        'bin_size': bin_size
+        'bin_size': bin_size,
+        'diffusion': {
+            'lactate': 1E-2,  # cm^2 / day
+            'oxygen': 1E-1,  # cm^2 / day
+        },
     }
     diffusion_process = DiffusionField(config)
 
@@ -83,7 +87,7 @@ def run_cell_grid(
     temporal_fig.show()
 
     # plot results
-    settings = {}
+    settings = {'max_rows': bounds[0]*5}
     results_fig = plot_simulation_output(
         data,
         settings=settings,

@@ -6,7 +6,6 @@ Diffusion Field
 Diffuses and decays molecular concentrations in a 2D field.
 """
 
-import os
 import copy
 import cv2
 import numpy as np
@@ -14,32 +13,14 @@ from scipy import constants
 
 from vivarium.core.serialize import Quantity
 from vivarium.core.process import Process
-from vivarium.core.engine import Engine, pf
-from vivarium.library.units import units, remove_units
+from vivarium.core.engine import Engine
 
+from library.grid import get_bin_site, get_bin_volume
 from plots.field import plot_fields, plot_fields_temporal
 
 
 # laplacian kernel for diffusion
 LAPLACIAN_2D = np.array([[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]])
-AVOGADRO = constants.N_A
-CONCENTRATION_UNIT = units.ng / units.mL
-LENGTH_UNIT = units.um
-
-
-def get_bin_site(location, n_bins, bounds):
-    bin_site_no_rounding = np.array([
-        location[0] * n_bins[0] / bounds[0],
-        location[1] * n_bins[1] / bounds[1]
-    ])
-    bin_site = tuple(
-        np.floor(bin_site_no_rounding).astype(int) % n_bins)
-    return bin_site
-
-
-def get_bin_volume(n_bins, bounds, depth):
-    total_volume = (depth * bounds[0] * bounds[1]) * 1e-15  # (L)
-    return total_volume / (n_bins[0] * n_bins[1])
 
 
 class DiffusionField(Process):
@@ -78,8 +59,6 @@ class DiffusionField(Process):
             int(self.bounds[1] / self.parameters['bin_size'])
         ]
         self.depth = self.parameters['depth']
-        if isinstance(self.depth, Quantity):
-            self.depth = self.depth.to(LENGTH_UNIT).magnitude
 
         # get diffusion rates
         diffusion_rate = self.parameters['default_diffusion_rate']
@@ -278,10 +257,7 @@ def test_fields():
         'bounds': [size, size],
         'bin_size': 1
     }
-    fields = DiffusionField(config)
-
-    # make the process
-    field = DiffusionField()
+    field = DiffusionField(config)
 
     # put it in a simulation
     sim = Engine(

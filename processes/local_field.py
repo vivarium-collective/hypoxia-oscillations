@@ -11,6 +11,7 @@ environmental state.
 import numpy as np
 from scipy import constants
 
+from library.grid import get_bin_site, get_bin_volume
 from vivarium.core.process import Step
 from vivarium.library.units import units, remove_units
 
@@ -40,17 +41,14 @@ class LocalField(Step):
          return {
             'exchanges': {
                 '*': {
-                    '_default': 0,  # counts!
+                    '_default': 0,
                 }
             },
             'location': {
                 '_default': [0.5 * LENGTH_UNIT, 0.5 * LENGTH_UNIT]
             },
             'fields': {
-                '*': {
-                    '_default': np.ones(1),
-                    #'_updater': 'accumulate',
-                }
+                '*': {'_default': np.ones(1)}
             },
             'dimensions': {
                 'bounds': {
@@ -64,7 +62,6 @@ class LocalField(Step):
                 },
             }
         }
-
 
     def next_update(self, timestep, states):
         if not states:
