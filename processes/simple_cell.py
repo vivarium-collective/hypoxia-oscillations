@@ -1,6 +1,7 @@
 from vivarium.core.process import Process, Step
 from vivarium.core.engine import Engine, pf
 from vivarium.plots.simulation_output import plot_simulation_output
+from processes.local_field import MOLECULAR_WEIGHTS, AVOGADRO
 
 
 class SimpleCell(Process):
@@ -125,18 +126,24 @@ class SimpleCell(Process):
         gfp_degradation = self.parameters['k_GFP_deg'] * gfp_in
         dGFP = gfp_production - gfp_degradation
 
-        # TODO -- oxygen
-        dO2 = ()
+        # TODO determine oxygen exchange
+        dO2 = -1
+        # oxygen_consumed = self.parameters['k_HIF_deg_basal'] * hif_in * oxygen_ex
+        # if oxygen_consumed > 1e100:  # TODO -- why is this blowing up?
+        #     oxygen_consumed = 0
+        # dO2 = int((oxygen_consumed * MOLECULAR_WEIGHTS['oxygen'] * AVOGADRO).magnitude)  # TODO -- make this correct
 
         # retrieve the results
         return {
             'internal_species': {
                 'HIF': dHIF * interval,
                 'lactate': dLactate * interval,
-                'GFP': dGFP * interval
+                'GFP': dGFP * interval,
             },
-            'external_species': {
-                # TODO -- we need to update external Oxygen,
+            'boundary': {
+                'exchange': {
+                    'oxygen': dO2,
+                }
             }
         }
 

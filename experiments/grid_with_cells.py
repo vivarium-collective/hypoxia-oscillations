@@ -10,16 +10,19 @@ from composites.composite_cell import CompositeCell
 
 DEFAULT_BOUNDS = [4, 4]
 DEFAULT_BIN_SIZE = 1
+DEFAULT_DEPTH = 10
 
 
 def run_cell_grid(
     total_time=60,
     bin_size=1,
     bounds=None,
+    depth=None,
 ):
     # set defaults
     bounds = bounds or DEFAULT_BOUNDS
     bin_size = bin_size or DEFAULT_BIN_SIZE
+    depth = depth or DEFAULT_DEPTH
 
     # initialize composite dicts
     grid_processes = {'cells': {}}
@@ -30,6 +33,7 @@ def run_cell_grid(
     config = {
         'bounds': bounds,
         'bin_size': bin_size,
+        'depth': depth,
         'diffusion': {
             'lactate': 1E-2,  # cm^2 / day
             'oxygen': 1E-1,  # cm^2 / day
