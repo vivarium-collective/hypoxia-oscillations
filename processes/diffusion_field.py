@@ -42,16 +42,19 @@ def get_bin_volume(n_bins, bounds, depth):
     return total_volume / (n_bins[0] * n_bins[1])
 
 
-class Diffusion(Process):
+class DiffusionField(Process):
 
     defaults = {
-        # parameters for the lattice dimensions
+        # lattice dimensions
         'bounds': [10, 10],
         'bin_size': 1,
         'depth': 1.0,
 
         # molecules
-        'molecules': ['lactate', 'oxygen'],
+        'molecules': [
+            'lactate',
+            'oxygen',
+        ],
 
         # diffusion
         'default_diffusion_dt': 0.001,
@@ -193,7 +196,6 @@ class Diffusion(Process):
 
         # degrade and diffuse
         fields_new = copy.deepcopy(fields)
-        # fields_new = self.degrade_fields(fields_new, timestep)
         fields_new = self.diffuse_fields(fields_new, timestep)
 
         # get delta_fields
@@ -212,7 +214,7 @@ class Diffusion(Process):
 
     def get_bin_site(self, location):
         return get_bin_site(
-            [l for l in location],
+            [loc for loc in location],
             self.n_bins,
             self.bounds)
 
@@ -276,10 +278,10 @@ def test_fields():
         'bounds': [size, size],
         'bin_size': 1
     }
-    fields = Diffusion(config)
+    fields = DiffusionField(config)
 
     # make the process
-    field = Diffusion()
+    field = DiffusionField()
 
     # put it in a simulation
     sim = Engine(
@@ -297,9 +299,6 @@ def test_fields():
 
     # get the results
     data = sim.emitter.get_timeseries()
-
-    # # print results
-    # print(pf(data))
 
     # plot
     first_fields = {key: matrix[0] for key, matrix in data['fields'].items()}
