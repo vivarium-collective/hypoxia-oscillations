@@ -8,7 +8,7 @@ from plots.field import plot_fields_temporal
 from composites.composite_cell import CompositeCell
 
 
-DEFAULT_BOUNDS = [4, 4]
+DEFAULT_BOUNDS = [5, 5]
 DEFAULT_BIN_SIZE = 1
 DEFAULT_DEPTH = 10
 
@@ -23,6 +23,8 @@ def run_cell_grid(
     bounds = bounds or DEFAULT_BOUNDS
     bin_size = bin_size or DEFAULT_BIN_SIZE
     depth = depth or DEFAULT_DEPTH
+
+    kmax_o2_deg = 1e0
 
     # initialize composite dicts
     grid_processes = {'cells': {}}
@@ -58,7 +60,10 @@ def run_cell_grid(
         for y in range(bounds[1]):
             # make the cell
             cell_id = f'[{x},{y}]'
-            cell = cell_composer.generate({'cell_id': cell_id})
+            cell = cell_composer.generate({'cell_id': cell_id,
+                                           'cell_config': {
+                                                'kmax_o2_deg': kmax_o2_deg,
+                                           }})
 
             # add cell to grid
             grid_processes['cells'][cell_id] = cell['processes']

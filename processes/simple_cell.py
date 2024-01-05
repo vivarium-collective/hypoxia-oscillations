@@ -2,6 +2,7 @@ from vivarium.core.process import Process, Step
 from vivarium.core.engine import Engine, pf
 from vivarium.plots.simulation_output import plot_simulation_output
 from processes.local_field import MOLECULAR_WEIGHTS, AVOGADRO
+import numpy as np
 
 
 class SimpleCell(Process):
@@ -32,12 +33,19 @@ class SimpleCell(Process):
         'k_O2_consumption': 1.0,
         'external_oxygen_initial': 1.0,
 
+        # oxygen exchange
+        'kmax_o2_deg': 1e-1,
+        'HIF_threshold': 2.5,
+        'hill_coeff_o2_deg': 10,
+        'k_min_o2_deg': 1e-2
     }
 
     def __init__(self, parameters=None):
         super().__init__(parameters)
         self.internal_species_list = ['HIF', 'lactate', 'GFP', 'oxygen']
         self.external_species_list = ['lactate', 'oxygen']
+
+        self.conc_conversion = {'oxygen': 1.0}  # TODO set conversion from conc to counts
 
     def initial_state(self, config=None):
         return {
@@ -126,12 +134,15 @@ class SimpleCell(Process):
         gfp_degradation = self.parameters['k_GFP_deg'] * gfp_in
         dGFP = gfp_production - gfp_degradation
 
-        # TODO determine oxygen exchange
-        dO2 = -1
-        # oxygen_consumed = self.parameters['k_HIF_deg_basal'] * hif_in * oxygen_ex
-        # if oxygen_consumed > 1e100:  # TODO -- why is this blowing up?
-        #     oxygen_consumed = 0
-        # dO2 = int((oxygen_consumed * MOLECULAR_WEIGHTS['oxygen'] * AVOGADRO).magnitude)  # TODO -- make this correct
+        # Calculate oxygen exchange
+        dO2 = 0
+        if oxygen_ex > 0:
+            dO2 = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (
+                    (hif_in / self.parameters['HIF_threshold'])**self.parameters['hill_coeff_o2_deg'] + 1)
+
+        # convert dO2 from concentration to counts
+        dO2 *= self.conc_conversion['oxygen']
+        # dO2 = int(dO2)
 
         # retrieve the results
         return {
