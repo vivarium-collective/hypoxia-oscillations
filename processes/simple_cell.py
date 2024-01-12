@@ -6,6 +6,22 @@ from vivarium.plots.simulation_output import plot_simulation_output
 
 
 class SimpleCell(Process):
+    """
+    Simple Cell
+    ===========
+
+    A simple cell model with HIF, lactate, and GFP, following this system of equations:
+        dHIF = ksxs + ksx*(HIF^2)/(kpx + HIF^2) - kdx*HIF - kdsx*HIF*lactate
+        dlactate = ksy*HIF^2/(kpy + HIF^2) - kdy*lactate
+        dGFP = Vg*HIF^3/(kg+HIF^3) - dg*GFP
+        
+    Latex equations:
+        \frac{dHIF}{dt} = k_{sxs} + \frac{k_{sx}HIF^2}{k_{px} + HIF^2} - k_{dx}HIF - k_{dsx}HIF*lactate
+        \frac{dlactate}{dt} = \frac{k_{sy}HIF^2}{k_{py} + HIF^2} - k_{dy}lactate
+        \frac{dGFP}{dt} = \frac{V_gHIF^3}{k_g+HIF^3} - d_gGFP
+
+    """
+
     defaults = {
         'k_HIF_production_basal': 0.02,  # k_sxs
         'k_HIF_production_max': 0.9,  # k_sx
@@ -92,11 +108,6 @@ class SimpleCell(Process):
         }
 
     def next_update(self, interval, states):
-        """
-        dHIF = ksxs + ksx*(HIF^2)/(kpx + HIF^2) - kdx*HIF - kdsx*HIF*lactate
-        dlactate = ksy*HIF^2/(kpy + HIF^2) - kdy*lactate
-        dGFP = Vg*HIF^3/(kg+HIF^3) - dg*GFP
-        """
 
         # get the variables
         hif_in = states['internal_species']['HIF']
