@@ -1,14 +1,14 @@
 from vivarium.core.process import Process, Step
 from vivarium.core.engine import Engine, pf
 from vivarium.plots.simulation_output import plot_simulation_output
-from processes.local_field import MOLECULAR_WEIGHTS, AVOGADRO
-import numpy as np
+# from processes.local_field import MOLECULAR_WEIGHTS, AVOGADRO
+# import numpy as np
 
 
 class SimpleCell(Process):
     defaults = {
         'k_HIF_production_basal': 0.02,  # k_sxs
-        'k_HIF_production_max': 1,  # k_sx
+        'k_HIF_production_max': 0.9,  # k_sx
         'k_HIF_pos_feedback': 1,  # k_px
         'k_HIF_deg_basal': 0.2,  # k_dx
         'k_HIF_deg_lactate': 1,  # k_dsx
@@ -21,7 +21,7 @@ class SimpleCell(Process):
 
         # initial states
         'HIF_initial': 0.1,  #
-        'lactate_initial': 0.2,  #
+        'lactate_initial': 0.001,  #
         'external_lactate_initial': 0.1,
         'GFP_initial': 0.0,  #
 
@@ -31,7 +31,7 @@ class SimpleCell(Process):
 
         # oxygen consumption
         'k_O2_consumption': 1.0,
-        'external_oxygen_initial': 1.0,
+        'external_oxygen_initial': 1.1,
 
         # oxygen exchange
         'kmax_o2_deg': 1e-1,
@@ -45,7 +45,10 @@ class SimpleCell(Process):
         self.internal_species_list = ['HIF', 'lactate', 'GFP', 'oxygen']
         self.external_species_list = ['lactate', 'oxygen']
 
-        self.conc_conversion = {'oxygen': 1.0}  # TODO set conversion from conc to counts
+        self.conc_conversion = {
+            'oxygen': 1.0,
+            'lactate': 10.0,
+        }  # TODO set conversion from conc to counts
 
     def initial_state(self, config=None):
         return {
@@ -135,14 +138,16 @@ class SimpleCell(Process):
         dGFP = gfp_production - gfp_degradation
 
         # Calculate oxygen exchange
-        dO2 = 0
+        dO2_ext = 0
         if oxygen_ex > 0:
-            dO2 = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (
+            dO2_ext = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (
                     (hif_in / self.parameters['HIF_threshold'])**self.parameters['hill_coeff_o2_deg'] + 1)
 
-        # convert dO2 from concentration to counts
-        dO2 *= self.conc_conversion['oxygen']
+        # convert dO2 and lactate transport from concentration to counts
+        # TODO -- these should be ints
+        dO2_ext *= self.conc_conversion['oxygen']
         # dO2 = int(dO2)
+        dLactate_ext = - lactate_transport*self.conc_conversion['lactate']
 
         # retrieve the results
         return {
@@ -153,7 +158,8 @@ class SimpleCell(Process):
             },
             'boundary': {
                 'exchange': {
-                    'oxygen': dO2,
+                    'oxygen': dO2_ext*interval,
+                    'lactate': dLactate_ext*interval,
                 }
             }
         }

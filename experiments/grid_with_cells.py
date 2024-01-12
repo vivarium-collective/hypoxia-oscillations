@@ -14,7 +14,7 @@ DEFAULT_DEPTH = 10
 
 
 def run_cell_grid(
-    total_time=60,
+    total_time=800,
     bin_size=1,
     bounds=None,
     depth=None,
@@ -75,7 +75,12 @@ def run_cell_grid(
             }
 
     # get initial state from diffusion process
-    field_state = diffusion_process.initial_state({'random': 1.0})
+    # field_state = diffusion_process.initial_state({'random': 1.0})
+    field_state = diffusion_process.initial_state({
+        'random': {
+            'lactate': 0.2,
+            'oxygen': 2.2
+        }})
     grid_initial_state['fields'] = field_state['fields']
 
     # initialize simulation
@@ -94,9 +99,10 @@ def run_cell_grid(
     # print(pf(data))
 
     # plot fields
+    nth_timestep = int(total_time/8)
     temporal_fig = plot_fields_temporal(
         data['fields'],
-        nth_timestep=10,
+        nth_timestep=nth_timestep,
         out_dir='out',
         filename='composite_fields_temporal'
     )

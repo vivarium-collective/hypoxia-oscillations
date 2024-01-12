@@ -98,10 +98,16 @@ class DiffusionField(Process):
         if config is None:
             config = {}
         if 'random' in config:
-            max = config.get('random', 1)
-            fields = {
-                field: max * self.random_field()
-                for field in self.parameters['molecules']}
+            # max = config.get('random', 1)
+            max_values = config.get('random', 1)
+            if isinstance(max_values, dict):
+                fields = {
+                    field: max_values.get(field, 1) * self.random_field()
+                    for field in self.parameters['molecules']}
+            else:
+                fields = {
+                    field: max_values * self.random_field()
+                    for field in self.parameters['molecules']}
         elif 'uniform' in config:
             fields = {
                 field: config['uniform'] * self.ones_field()
