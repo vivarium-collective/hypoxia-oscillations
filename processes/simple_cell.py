@@ -14,7 +14,7 @@ class SimpleCell(Process):
         dHIF = ksxs + ksx*(HIF^2)/(kpx + HIF^2) - kdx*HIF - kdsx*HIF*lactate
         dlactate = ksy*HIF^2/(kpy + HIF^2) - kdy*lactate
         dGFP = Vg*HIF^3/(kg+HIF^3) - dg*GFP
-        
+
     Latex equations:
         \frac{dHIF}{dt} = k_{sxs} + \frac{k_{sx}HIF^2}{k_{px} + HIF^2} - k_{dx}HIF - k_{dsx}HIF*lactate
         \frac{dlactate}{dt} = \frac{k_{sy}HIF^2}{k_{py} + HIF^2} - k_{dy}lactate

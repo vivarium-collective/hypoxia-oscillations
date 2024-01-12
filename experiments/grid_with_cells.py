@@ -8,7 +8,7 @@ from plots.field import plot_fields_temporal
 from composites.composite_cell import CompositeCell
 
 
-DEFAULT_BOUNDS = [5, 5]
+DEFAULT_BOUNDS = [10, 10]
 DEFAULT_BIN_SIZE = 1
 DEFAULT_DEPTH = 10
 OXYGEN_CLAMP_VALUE = 1.1
