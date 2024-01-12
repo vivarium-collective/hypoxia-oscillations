@@ -11,6 +11,7 @@ from composites.composite_cell import CompositeCell
 DEFAULT_BOUNDS = [5, 5]
 DEFAULT_BIN_SIZE = 1
 DEFAULT_DEPTH = 10
+OXYGEN_CLAMP_VALUE = 1.1
 
 
 def run_cell_grid(
@@ -18,11 +19,14 @@ def run_cell_grid(
     bin_size=1,
     bounds=None,
     depth=None,
+    oxygen_clamp_value=None,
 ):
+
     # set defaults
     bounds = bounds or DEFAULT_BOUNDS
     bin_size = bin_size or DEFAULT_BIN_SIZE
     depth = depth or DEFAULT_DEPTH
+    oxygen_clamp_value = oxygen_clamp_value or OXYGEN_CLAMP_VALUE
 
     kmax_o2_deg = 1e0
 
@@ -40,6 +44,7 @@ def run_cell_grid(
             'lactate': 1E-2,  # cm^2 / day
             'oxygen': 1E-1,  # cm^2 / day
         },
+        'clamp_edges': {'oxygen': oxygen_clamp_value}
     }
     diffusion_process = DiffusionField(config)
 

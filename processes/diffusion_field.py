@@ -46,6 +46,9 @@ class DiffusionField(Process):
             'lactate': 1E-1,  # units.cm * units.cm / units.day,
             'oxygen': 1E0,  # units.cm * units.cm / units.day,
         },
+
+        # edge clamp
+        'clamp_edges': False,  # a dict with {'field_id': clamp_value}
     }
 
     def __init__(self, parameters=None):
@@ -84,6 +87,12 @@ class DiffusionField(Process):
 
         # get bin volume, to convert between counts and concentration
         self.bin_volume = get_bin_volume([bins_x, bins_y], self.bounds, self.depth)
+
+        # check that edge clamp are all in dict
+        if isinstance(self.parameters['clamp_edges'], dict):
+            for key in self.parameters['clamp_edges'].keys():
+                assert key in self.molecule_ids, f'clamp edge key {key} not in molecules'
+
 
     def initial_state(self, config=None):
         """get initial state of the fields
@@ -182,6 +191,14 @@ class DiffusionField(Process):
         # degrade and diffuse
         fields_new = copy.deepcopy(fields)
         fields_new = self.diffuse_fields(fields_new, timestep)
+
+        # clamp edges
+        if isinstance(self.parameters['clamp_edges'], dict):
+            for mol_id, clamp_value in self.parameters['clamp_edges'].items():
+                fields_new[mol_id][0, :] = clamp_value
+                fields_new[mol_id][-1, :] = clamp_value
+                fields_new[mol_id][:, 0] = clamp_value
+                fields_new[mol_id][:, -1] = clamp_value
 
         # get delta_fields
         delta_fields = {
