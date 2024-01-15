@@ -5,10 +5,11 @@ from vivarium.core.engine import Engine, pf
 from vivarium.plots.simulation_output import plot_simulation_output
 from processes.diffusion_field import DiffusionField
 from plots.field import plot_fields_temporal
+from plots.timeseries import plot_simulation_data
 from composites.composite_cell import CompositeCell
 
 
-DEFAULT_BOUNDS = [10, 10]
+DEFAULT_BOUNDS = [8, 8]
 DEFAULT_BIN_SIZE = 1
 DEFAULT_DEPTH = 10
 OXYGEN_CLAMP_VALUE = 1.1
@@ -21,6 +22,7 @@ def run_cell_grid(
     depth=None,
     oxygen_clamp_value=None,
 ):
+    n_snapshots = 6  # snapshots for temporal fields plot
 
     # set defaults
     bounds = bounds or DEFAULT_BOUNDS
@@ -104,7 +106,7 @@ def run_cell_grid(
     # print(pf(data))
 
     # plot fields
-    nth_timestep = int(total_time/8)
+    nth_timestep = int(total_time/n_snapshots)
     temporal_fig = plot_fields_temporal(
         data['fields'],
         nth_timestep=nth_timestep,
@@ -114,17 +116,28 @@ def run_cell_grid(
     temporal_fig.show()
 
     # plot results
-    settings = {
-        'max_rows': bounds[0] * 5,
-        'skip_ports': ['fields', 'dimensions']
-    }
-    results_fig = plot_simulation_output(
-        data,
-        settings=settings,
-        out_dir='out',
-        filename='cell_data'
+    results_fig = plot_simulation_data(
+        data['cells'],
+        num_rows=bounds[0],
+        skip_paths=[
+            # ['boundary'],
+            # ['internal_store']
+        ]
     )
     results_fig.show()
+
+    # # older plot
+    # settings = {
+    #     'max_rows': bounds[0] * 5,
+    #     'skip_ports': ['fields', 'dimensions']
+    # }
+    # results_fig = plot_simulation_output(
+    #     data,
+    #     settings=settings,
+    #     out_dir='out',
+    #     filename='cell_data'
+    # )
+    # results_fig.show()
 
 
 if __name__ == '__main__':
