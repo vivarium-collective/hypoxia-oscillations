@@ -1,17 +1,21 @@
 import os
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+import ast  # for safely evaluating the string representation of lists
 
 
 def plot_simulation_data(
         simulation_data,
         num_rows,
-        skip_paths=[],
-        show_nth_site=1,  # TODO -- make it so it shows every nth site
+        num_cols,
+        skip_paths=None,
         out_dir='out',
         filename=None
 ):
+    skip_paths = skip_paths or []
+
     # Function to check if the current path should be skipped
+
     def should_skip(current_path):
         return any(all(k == current_path[i] for i, k in enumerate(path)) for path in skip_paths if len(path) <= len(current_path))
 
@@ -27,11 +31,6 @@ def plot_simulation_data(
             # Assuming 'node' is now a list or similar iterable of data points
             ax.plot(node, label=' - '.join(path))
 
-    # Total number of cells
-    num_cells = len(simulation_data)
-    # Calculate number of columns based on number of rows and cells
-    num_cols = -(-num_cells // num_rows)  # Ceiling division
-
     # Create a figure with a gridspec layout
     fig = plt.figure(figsize=(num_cols * 4.5, num_rows * 3))
     gs = GridSpec(num_rows, num_cols, figure=fig)
@@ -42,11 +41,9 @@ def plot_simulation_data(
     # Index for current cell
     cell_index = 0
     for cell_id, data in simulation_data.items():
-        # Determine row and column index
-        row_index = cell_index // num_cols
-        col_index = cell_index % num_cols
-
-        ax = fig.add_subplot(gs[row_index, col_index])
+        # Parse the cell_id to get x, y
+        x, y = ast.literal_eval(cell_id)
+        ax = fig.add_subplot(gs[x, y])
         ax.set_title(f'Cell ID: {cell_id}')
         ax.set_xlabel('Time')
         ax.set_ylabel('Value')
@@ -81,7 +78,3 @@ def plot_simulation_data(
         fig.savefig(fig_path, bbox_inches='tight')
 
     return fig
-
-# Example usage
-# simulation_data = {
-#     'cell1': {'first': {'path': {'variable1': [0, 1, 2, 3, 4]}}, 'second
