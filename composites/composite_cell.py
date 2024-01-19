@@ -9,6 +9,7 @@ from processes.local_field import LocalField
 
 class CompositeCell(Composer):
     defaults = {
+        'parallel': False,
         'cell_id': None,
         'cell_config': {},
         'boundary_path': ('boundary',),
@@ -20,6 +21,8 @@ class CompositeCell(Composer):
         super().__init__(config)
 
     def generate_processes(self, config):
+        if self.config['parallel']:
+            config['cell_config']['_parallel'] = True
         cell_process = SimpleCell(config['cell_config'])
         local_field = LocalField()
         return {

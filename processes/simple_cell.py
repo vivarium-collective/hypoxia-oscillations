@@ -158,7 +158,7 @@ class SimpleCell(Process):
         # TODO -- these should be ints
         dO2_ext *= self.conc_conversion['oxygen']
         # dO2 = int(dO2)
-        dLactate_ext = - lactate_transport*self.conc_conversion['lactate']
+        dLactate_ext = - lactate_transport * self.conc_conversion['lactate']
 
         # retrieve the results
         return {

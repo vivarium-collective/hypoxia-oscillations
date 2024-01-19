@@ -1,6 +1,8 @@
 """
 Grid Experiment
 """
+import random
+
 from vivarium.core.engine import Engine, pf
 from vivarium.plots.simulation_output import plot_simulation_output
 from processes.diffusion_field import DiffusionField
@@ -9,10 +11,11 @@ from plots.timeseries import plot_simulation_data
 from composites.composite_cell import CompositeCell
 
 
-DEFAULT_BOUNDS = [8, 8]
+
+DEFAULT_BOUNDS = [20, 20]
 DEFAULT_BIN_SIZE = 1
 DEFAULT_DEPTH = 10
-OXYGEN_CLAMP_VALUE = 1.1
+OXYGEN_CLAMP_VALUE = 2  # 1.1
 
 
 def run_cell_grid(
@@ -21,8 +24,12 @@ def run_cell_grid(
     bounds=None,
     depth=None,
     oxygen_clamp_value=None,
+    density=0.9,  # 1.0 = 100% density
 ):
     n_snapshots = 6  # snapshots for temporal fields plot
+
+    # cell parameters
+    lactate_production = 1e-1
 
     # set defaults
     bounds = bounds or DEFAULT_BOUNDS
@@ -59,27 +66,31 @@ def run_cell_grid(
     }
 
     # make cell composer
-    config = {}
-    cell_composer = CompositeCell(config)
+    cell_config = {
+        'k_lactate_production': lactate_production,
+    }
+    cell_composer = CompositeCell(cell_config)
 
     # add cells
     for x in range(bounds[0]):
         for y in range(bounds[1]):
-            # make the cell
-            cell_id = f'[{x},{y}]'
-            cell = cell_composer.generate({'cell_id': cell_id,
-                                           'cell_config': {
-                                                'kmax_o2_deg': kmax_o2_deg,
-                                           }})
+            if random.random() <= density:
 
-            # add cell to grid
-            grid_processes['cells'][cell_id] = cell['processes']
-            grid_topology['cells'][cell_id] = cell['topology']
-            grid_initial_state['cells'][cell_id] = {
-                'boundary': {
-                    'location': [x*bin_size,y*bin_size]
+                # make the cell
+                cell_id = f'[{x},{y}]'
+                cell = cell_composer.generate({'cell_id': cell_id,
+                                               'cell_config': {
+                                                    'kmax_o2_deg': kmax_o2_deg,
+                                               }})
+
+                # add cell to grid
+                grid_processes['cells'][cell_id] = cell['processes']
+                grid_topology['cells'][cell_id] = cell['topology']
+                grid_initial_state['cells'][cell_id] = {
+                    'boundary': {
+                        'location': [x*bin_size,y*bin_size]
+                    }
                 }
-            }
 
     # get initial state from diffusion process
     # field_state = diffusion_process.initial_state({'random': 1.0})
@@ -111,7 +122,7 @@ def run_cell_grid(
         data['fields'],
         nth_timestep=nth_timestep,
         out_dir='out',
-        filename='composite_fields_temporal'
+        filename=f'composite_fields_temporal'
     )
     temporal_fig.show()
 
@@ -122,22 +133,12 @@ def run_cell_grid(
         skip_paths=[
             # ['boundary'],
             # ['internal_store']
-        ]
+        ],
+        show_nth_site=4,
+        filename=f'results_by_cell'
     )
-    results_fig.show()
-
-    # # older plot
-    # settings = {
-    #     'max_rows': bounds[0] * 5,
-    #     'skip_ports': ['fields', 'dimensions']
-    # }
-    # results_fig = plot_simulation_output(
-    #     data,
-    #     settings=settings,
-    #     out_dir='out',
-    #     filename='cell_data'
-    # )
     # results_fig.show()
+
 
 
 if __name__ == '__main__':

@@ -1,8 +1,16 @@
+import os
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
 
-def plot_simulation_data(simulation_data, num_rows, skip_paths=[]):
+def plot_simulation_data(
+        simulation_data,
+        num_rows,
+        skip_paths=[],
+        show_nth_site=1,  # TODO -- make it so it shows every nth site
+        out_dir='out',
+        filename=None
+):
     # Function to check if the current path should be skipped
     def should_skip(current_path):
         return any(all(k == current_path[i] for i, k in enumerate(path)) for path in skip_paths if len(path) <= len(current_path))
@@ -65,6 +73,12 @@ def plot_simulation_data(simulation_data, num_rows, skip_paths=[]):
     # Adjust layout to accommodate the external legend
     # rect : tuple (left, bottom, right, top)
     fig.tight_layout(rect=[0, 0, 0.8, 1])
+
+    if filename:
+        os.makedirs(out_dir, exist_ok=True)
+        fig_path = os.path.join(out_dir, filename)
+        print(f"Writing {fig_path}")
+        fig.savefig(fig_path, bbox_inches='tight')
 
     return fig
 
