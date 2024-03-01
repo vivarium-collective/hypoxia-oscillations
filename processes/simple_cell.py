@@ -151,6 +151,7 @@ class SimpleCell(Process):
         # Calculate oxygen exchange
         dO2_ext = 0
         if oxygen_ex > 0:
+            # TODO -- add parameter k_O2_consumption
             dO2_ext = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (
                     (hif_in / self.parameters['HIF_threshold'])**self.parameters['hill_coeff_o2_deg'] + 1)
 

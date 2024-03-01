@@ -2,6 +2,7 @@
 Grid Experiment
 """
 import random
+import numpy as np
 
 from vivarium.core.engine import Engine, pf
 from processes.diffusion_field import DiffusionField
@@ -23,11 +24,17 @@ def run_cell_grid(
     depth=None,
     oxygen_clamp_value=None,
     density=0.9,  # 1.0 = 100% density
+    perturb_cell_parameters=None,
 ):
+    if perturb_cell_parameters is None:
+        perturb_cell_parameters = {
+            'k_O2_consumption': {'loc': 1.0, 'scale': 0.5}}
+
     n_snapshots = 6  # number of snapshots for temporal fields plot
 
     # cell parameters
     lactate_production = 1e-1
+    kmax_o2_deg = 1e0
 
     # set defaults
     bounds = bounds or DEFAULT_BOUNDS
@@ -35,7 +42,7 @@ def run_cell_grid(
     depth = depth or DEFAULT_DEPTH
     oxygen_clamp_value = oxygen_clamp_value or OXYGEN_CLAMP_VALUE
 
-    kmax_o2_deg = 1e0
+
 
     # initialize composite dicts
     grid_processes = {'cells': {}}
@@ -74,11 +81,18 @@ def run_cell_grid(
         for y in range(bounds[1]):
             if random.random() <= density:
 
+                # get updated parameters
+                parameters = {}
+                for param_id, spec in perturb_cell_parameters.items():
+                    parameters[param_id] = np.abs(np.random.normal(spec['loc'], spec['scale']))
+
+
                 # make the cell
                 cell_id = f'[{x},{y}]'
                 cell = cell_composer.generate({'cell_id': cell_id,
                                                'cell_config': {
                                                     'kmax_o2_deg': kmax_o2_deg,
+                                                    **parameters
                                                }})
 
                 # add cell to grid
