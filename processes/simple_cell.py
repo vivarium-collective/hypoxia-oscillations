@@ -2,13 +2,14 @@ import os
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from vivarium.core.process import Process, Step
 from vivarium.core.engine import Engine, pf
 from vivarium.plots.simulation_output import plot_simulation_output
 from library.analyze import detect_oscillation_period
-# from processes.local_field import MOLECULAR_WEIGHTS, AVOGADRO
-# import numpy as np
 
 
 class SimpleCell(Process):
@@ -183,6 +184,7 @@ class SimpleCell(Process):
             }
         }
 
+
 def run_cell(total_time=1000, parameters=None):
     cell = SimpleCell(parameters=parameters)
 
@@ -228,19 +230,20 @@ def test_cell():
     fig.show()
 
 
-def save_heat_map(results_array, parameter_scan, param1, param2, out_dir='out', filename='heatmap.png'):
+def save_heat_map(results_array, parameter_scan, param1, param2,
+                  colormap='viridis', out_dir='out', filename='heatmap.png'):
     # Calculate figure size based on array dimensions
     array_height, array_width = results_array.shape
     fig_width = max(6, array_width / 3)  # Ensure minimum size and scale with width
     fig_height = max(4, array_height / 3)  # Ensure minimum size and scale with height
 
     # Extract the axis labels for the heatmap from the parameter_scan
-    x_axis_labels = [str(round(val, 1)) for val in parameter_scan[param1]]  # external_oxygen_initial values
-    y_axis_labels = [str(round(val, 1)) for val in parameter_scan[param2]]  # external_lactate_initial values
+    x_axis_labels = [str(round(val, 2)) for val in parameter_scan[param1]]  # param1 values
+    y_axis_labels = [str(round(val, 2)) for val in parameter_scan[param2]]  # param2 values
 
     # Generate the heatmap
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    cax = ax.imshow(results_array.T, cmap='viridis', origin='lower')
+    cax = ax.imshow(results_array.T, cmap=colormap, origin='lower')
     ax.set_xticks(np.arange(len(x_axis_labels)))
     ax.set_yticks(np.arange(len(y_axis_labels)))
     ax.set_xticklabels(x_axis_labels)
@@ -249,31 +252,31 @@ def save_heat_map(results_array, parameter_scan, param1, param2, out_dir='out', 
     plt.ylabel(param2.replace('_', ' ').title())
     plt.title('Oscillation Period Heat Map', fontsize=14)
 
-    # Add a color bar to the right of the heatmap
-    cbar = fig.colorbar(cax, ax=ax)
-    cbar.set_label('Oscillation Period')
-
     # Rotate the tick labels for better readability and adjust font size if necessary
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor", fontsize=10)
     plt.setp(ax.get_yticklabels(), fontsize=10)
 
-    # Adjust the layout to make room for the rotated x-axis labels and ensure the colorbar fits well
+    # Adjust the layout to make room for the colorbar
     plt.tight_layout()
+
+    # Create a new axes for the colorbar to the right of the main axes
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(cm.ScalarMappable(cmap=colormap), cax=cax)
 
     # Save the heatmap
     os.makedirs(out_dir, exist_ok=True)
     fig_path = os.path.join(out_dir, filename)
     print(f"Writing {fig_path}")
     fig.savefig(fig_path, bbox_inches='tight')
-    # plt.savefig(filename, bbox_inches='tight')
     plt.close()
 
 
 def test_scan_cell():
     total_time = 1500
     parameter_scan = {
-        'external_oxygen_initial': list(np.linspace(0,1.3,15)),
-        'external_lactate_initial': list(np.linspace(0,3.0,10)),
+        'external_oxygen_initial': list(np.linspace(0,1.3,30)),
+        'external_lactate_initial': list(np.linspace(0,2.6,15)),
     }
     fig_labels = {
         'external_oxygen_initial': 'O2',
