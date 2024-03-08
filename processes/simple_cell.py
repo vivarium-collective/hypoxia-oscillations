@@ -1,6 +1,12 @@
+import os
+import itertools
+import numpy as np
+import matplotlib.pyplot as plt
+
 from vivarium.core.process import Process, Step
 from vivarium.core.engine import Engine, pf
 from vivarium.plots.simulation_output import plot_simulation_output
+from library.analyze import detect_oscillation_period
 # from processes.local_field import MOLECULAR_WEIGHTS, AVOGADRO
 # import numpy as np
 
@@ -46,13 +52,13 @@ class SimpleCell(Process):
         'k_MCT4': 1E-3,  # lactate export
 
         # oxygen consumption
-        'k_O2_consumption': 1.0,
+        # 'k_O2_consumption': 1.0,
         'external_oxygen_initial': 1.1,
 
         # oxygen exchange
         'kmax_o2_deg': 1e-1,
-        'HIF_threshold': 2.5,
-        'hill_coeff_o2_deg': 10,
+        # 'HIF_threshold': 2.5,
+        # 'hill_coeff_o2_deg': 10,
         'k_min_o2_deg': 1e-2
     }
 
@@ -152,8 +158,9 @@ class SimpleCell(Process):
         dO2_ext = 0
         if oxygen_ex > 0:
             # TODO -- add parameter k_O2_consumption
-            dO2_ext = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (
-                    (hif_in / self.parameters['HIF_threshold'])**self.parameters['hill_coeff_o2_deg'] + 1)
+            dO2_ext = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (hif_in + 1)
+            # dO2_ext = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (
+            #         (hif_in / self.parameters['HIF_threshold'])**self.parameters['hill_coeff_o2_deg'] + 1)
 
         # convert dO2 and lactate transport from concentration to counts
         # TODO -- these should be ints
@@ -176,18 +183,7 @@ class SimpleCell(Process):
             }
         }
 
-
-def test_cell():
-    total_time = 1000
-
-    # create the process
-    parameters = {
-        'timestep': 0.1,
-        'k_HIF_production_max': 0.9,  # default is 1. bifurcation ~ 0.7, 1.4
-        'lactate_initial': 0.001,  # default 0.2
-        'external_lactate_initial': 0.1,
-        'external_oxygen_initial': 1.1,
-    }
+def run_cell(total_time=1000, parameters=None):
     cell = SimpleCell(parameters=parameters)
 
     # put it in a simulation
@@ -202,7 +198,22 @@ def test_cell():
 
     # get the results
     data = sim.emitter.get_timeseries()
+    return data
 
+
+def test_cell():
+    total_time = 1000
+
+    # create the process
+    parameters = {
+        # 'timestep': 0.1,
+        # 'k_HIF_production_max': 0.9,  # default is 1. bifurcation ~ 0.7, 1.4
+        # 'lactate_initial': 0.001,  # default 0.2
+        # 'external_lactate_initial': 0.1,
+        # 'external_oxygen_initial': 1.1,
+    }
+
+    data = run_cell(total_time, parameters)
     # # print results
     # print(pf(data))
 
@@ -217,5 +228,85 @@ def test_cell():
     fig.show()
 
 
+def save_heat_map(results_array, parameter_scan, param1, param2, out_dir='out', filename='heatmap.png'):
+    # Calculate figure size based on array dimensions
+    array_height, array_width = results_array.shape
+    fig_width = max(6, array_width / 3)  # Ensure minimum size and scale with width
+    fig_height = max(4, array_height / 3)  # Ensure minimum size and scale with height
+
+    # Extract the axis labels for the heatmap from the parameter_scan
+    x_axis_labels = [str(round(val, 1)) for val in parameter_scan[param1]]  # external_oxygen_initial values
+    y_axis_labels = [str(round(val, 1)) for val in parameter_scan[param2]]  # external_lactate_initial values
+
+    # Generate the heatmap
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    cax = ax.imshow(results_array.T, cmap='viridis', origin='lower')
+    ax.set_xticks(np.arange(len(x_axis_labels)))
+    ax.set_yticks(np.arange(len(y_axis_labels)))
+    ax.set_xticklabels(x_axis_labels)
+    ax.set_yticklabels(y_axis_labels)
+    plt.xlabel(param1.replace('_', ' ').title())
+    plt.ylabel(param2.replace('_', ' ').title())
+    plt.title('Oscillation Period Heat Map', fontsize=14)
+
+    # Add a color bar to the right of the heatmap
+    cbar = fig.colorbar(cax, ax=ax)
+    cbar.set_label('Oscillation Period')
+
+    # Rotate the tick labels for better readability and adjust font size if necessary
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor", fontsize=10)
+    plt.setp(ax.get_yticklabels(), fontsize=10)
+
+    # Adjust the layout to make room for the rotated x-axis labels and ensure the colorbar fits well
+    plt.tight_layout()
+
+    # Save the heatmap
+    os.makedirs(out_dir, exist_ok=True)
+    fig_path = os.path.join(out_dir, filename)
+    print(f"Writing {fig_path}")
+    fig.savefig(fig_path, bbox_inches='tight')
+    # plt.savefig(filename, bbox_inches='tight')
+    plt.close()
+
+
+def test_scan_cell():
+    total_time = 1200
+    parameter_scan = {
+        'external_oxygen_initial': list(np.linspace(0,1.5,15)),
+        'external_lactate_initial': list(np.linspace(0,7,15)),
+    }
+
+    # Create a list of keys and a list of values lists
+    keys, values = zip(*parameter_scan.items())
+    results_shape = [len(v) for v in values]
+    results_array = np.zeros(shape=results_shape)
+
+    # Generate all combinations of parameter values
+    for value_combination in itertools.product(*values):
+        # Create a parameter dictionary for the current combination
+        parameters = dict(zip(keys, value_combination))
+
+        # Run the simulation with the current parameter combination
+        data = run_cell(total_time, parameters)
+
+        # Detect the oscillation period
+        result = detect_oscillation_period(data['internal_species']['GFP'])
+
+        # Get the indices for the current combination in the results array
+        indices = tuple(values.index(value) for value, values in zip(value_combination, values))
+
+        # Store the result in the corresponding location in the results array
+        results_array[indices] = result
+
+    save_heat_map(
+        results_array,
+        parameter_scan,
+        'external_oxygen_initial',
+        'external_lactate_initial',
+        out_dir='out',
+        filename='heatmap.png')
+
+
 if __name__ == '__main__':
-    test_cell()
+    # test_cell()
+    test_scan_cell()
