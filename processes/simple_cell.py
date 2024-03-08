@@ -270,10 +270,14 @@ def save_heat_map(results_array, parameter_scan, param1, param2, out_dir='out', 
 
 
 def test_scan_cell():
-    total_time = 1200
+    total_time = 1500
     parameter_scan = {
-        'external_oxygen_initial': list(np.linspace(0,1.5,15)),
-        'external_lactate_initial': list(np.linspace(0,7,15)),
+        'external_oxygen_initial': list(np.linspace(0,1.3,15)),
+        'external_lactate_initial': list(np.linspace(0,3.0,10)),
+    }
+    fig_labels = {
+        'external_oxygen_initial': 'O2',
+        'external_lactate_initial': 'Lac'
     }
 
     # Create a list of keys and a list of values lists
@@ -297,6 +301,18 @@ def test_scan_cell():
 
         # Store the result in the corresponding location in the results array
         results_array[indices] = result
+
+        # # plot results
+        # filename_parts = [f'{fig_labels.get(key, key)}_{format(value, ".4g").replace(".", "p")}' for key, value in
+        #                   zip(keys, value_combination)]
+        # filename = f'results_{"_".join(filename_parts)}_oscilations:{str(result).replace(".", "p")}'
+        #
+        # settings = {}
+        # plot_simulation_output(
+        #     data,
+        #     settings=settings,
+        #     out_dir='out',
+        #     filename=filename)
 
     save_heat_map(
         results_array,
