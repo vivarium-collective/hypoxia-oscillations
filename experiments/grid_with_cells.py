@@ -18,31 +18,19 @@ OXYGEN_CLAMP_VALUE = 2  # 1.1
 
 
 def run_cell_grid(
-    total_time=800,
-    bin_size=1,
-    bounds=None,
-    depth=None,
-    oxygen_clamp_value=None,
-    density=0.9,  # 1.0 = 100% density
-    perturb_cell_parameters=None,
+        total_time,
+        bounds=DEFAULT_BOUNDS,
+        bin_size=DEFAULT_BIN_SIZE,
+        depth=DEFAULT_DEPTH,
+        diffusion_constants=None,
+        clamp_edges=False,
+        density=1.0,
+        perturb_cell_parameters=None,
+        cell_parameters=None,
 ):
-    if perturb_cell_parameters is None:
-        perturb_cell_parameters = {
-            'k_O2_consumption': {'loc': 1.0, 'scale': 0.5}}
-
-    n_snapshots = 6  # number of snapshots for temporal fields plot
-
-    # cell parameters
-    lactate_production = 1e-1
-    kmax_o2_deg = 1e0
-
-    # set defaults
-    bounds = bounds or DEFAULT_BOUNDS
-    bin_size = bin_size or DEFAULT_BIN_SIZE
-    depth = depth or DEFAULT_DEPTH
-    oxygen_clamp_value = oxygen_clamp_value or OXYGEN_CLAMP_VALUE
-
-
+    # parameters
+    perturb_cell_parameters = perturb_cell_parameters or {}
+    cell_parameters = cell_parameters or {}
 
     # initialize composite dicts
     grid_processes = {'cells': {}}
@@ -54,11 +42,8 @@ def run_cell_grid(
         'bounds': bounds,
         'bin_size': bin_size,
         'depth': depth,
-        'diffusion': {
-            'lactate': 1E-2,  # cm^2 / day
-            'oxygen': 1E-1,  # cm^2 / day
-        },
-        'clamp_edges': {'oxygen': oxygen_clamp_value}
+        'diffusion': diffusion_constants or {},
+        'clamp_edges': clamp_edges
     }
     diffusion_process = DiffusionField(config)
 
@@ -71,9 +56,7 @@ def run_cell_grid(
     }
 
     # make cell composer
-    cell_config = {
-        'k_lactate_production': lactate_production,
-    }
+    cell_config = {}
     cell_composer = CompositeCell(cell_config)
 
     # add cells
@@ -81,31 +64,36 @@ def run_cell_grid(
         for y in range(bounds[1]):
             if random.random() <= density:
 
-                # get updated parameters
-                parameters = {}
-                for param_id, spec in perturb_cell_parameters.items():
-                    parameters[param_id] = np.abs(np.random.normal(spec['loc'], spec['scale']))
+                # get parameters
+                parameters = cell_parameters.copy()
 
+                # update parameters
+                for param_id, spec in perturb_cell_parameters.items():
+                    # sample from log normal distribution
+                    scaling = np.random.lognormal(spec['loc'], spec['scale'])
+                    if scaling < 0:
+                        scaling = 0
+                    parameters[param_id] = scaling
+                    # parameters[param_id] = np.random.normal(spec['loc'], spec['scale'])
 
                 # make the cell
                 cell_id = f'[{x},{y}]'
                 cell = cell_composer.generate({'cell_id': cell_id,
-                                               'cell_config': {
-                                                    'kmax_o2_deg': kmax_o2_deg,
-                                                    **parameters
-                                               }})
+                                               'cell_config': parameters})
 
                 # add cell to grid
                 grid_processes['cells'][cell_id] = cell['processes']
                 grid_topology['cells'][cell_id] = cell['topology']
                 grid_initial_state['cells'][cell_id] = {
                     'boundary': {
-                        'location': [x*bin_size,y*bin_size]
+                        'location': [x * bin_size, y * bin_size]
                     }
                 }
 
     # get initial state from diffusion process
     # field_state = diffusion_process.initial_state({'random': 1.0})
+
+    # TODO -- make configurable
     field_state = diffusion_process.initial_state({
         'random': {
             'lactate': 0.2,
@@ -124,34 +112,58 @@ def run_cell_grid(
     sim.update(total_time)
 
     # retrieve results
-    data = sim.emitter.get_timeseries()
+    return sim.emitter.get_timeseries()
 
-    # print(pf(data))
+
+def run_cells1():
+    total_time = 800
+    perturb_cell_parameters = {
+        'o2_response_scaling': {'loc': 0.0, 'scale': 0.25},
+    }
+
+    data = run_cell_grid(
+        total_time=total_time,
+        perturb_cell_parameters=perturb_cell_parameters,
+        cell_parameters={
+            'kmax_o2_deg': 1e0,
+            # 'k_lactate_production': 1e-1,
+        },
+        diffusion_constants={
+            'lactate': 1E-2,  # cm^2 / day
+            'oxygen': 1E-1,  # cm^2 / day
+        },
+        clamp_edges={
+            'oxygen': OXYGEN_CLAMP_VALUE
+        },
+        density=0.9,
+    )
+
 
     # plot fields
+    n_snapshots = 6  # number of snapshots for temporal fields plot
     nth_timestep = int(total_time/(n_snapshots-1))
     temporal_fig = plot_fields_temporal(
         data['fields'],
         nth_timestep=nth_timestep,
         out_dir='out',
-        filename=f'composite_fields_temporal'
+        filename=f'composite_fields_temporal1'
     )
     temporal_fig.show()
 
     # plot results
     results_fig = plot_simulation_data(
         data['cells'],
-        num_rows=bounds[0],
-        num_cols=bounds[1],
-        skip_paths=[
-            # ['boundary'],
-            # ['internal_store']
-        ],
-        filename=f'results_by_cell'
+        num_rows=DEFAULT_BOUNDS[0],
+        num_cols=DEFAULT_BOUNDS[1],
+        filename=f'results_by_cell1'
     )
     # results_fig.show()
 
 
+def run_cell2():
+    pass
+
 
 if __name__ == '__main__':
-    run_cell_grid()
+    run_cells1()
+    # run_cell2()

@@ -1,11 +1,14 @@
 import itertools
 import numpy as np
 
-from vivarium.core.process import Process
+from vivarium.core.process import Process, Step
 from vivarium.core.engine import Engine
 from vivarium.plots.simulation_output import plot_simulation_output
 from library.analyze import detect_oscillation_period
 from plots.scan import save_heat_map
+from scipy import constants
+
+AVOGADRO = constants.N_A
 
 
 class SimpleCell(Process):
@@ -181,6 +184,52 @@ class SimpleCell(Process):
         }
 
 
+class SimpleEnvironment(Step):
+    defaults = {
+        'volume': 1.0,
+    }
+    def __init__(self, parameters=None):
+        super().__init__(parameters)
+
+    def ports_schema(self):
+        return {
+            'exchanges': {
+                'oxygen': {
+                    '_default': 1.0,
+                    '_emit': True,
+                },
+                'lactate': {
+                    '_default': 0.1,
+                    '_emit': True,
+                }
+            },
+            'external': {
+                'oxygen': {
+                    '_default': 1.0,
+                    '_emit': True,
+                },
+                'lactate': {
+                    '_default': 0.1,
+                    '_emit': True,
+                }
+            }
+        }
+
+    def next_update(self, _, states):
+        exchanges = states['exchanges']
+        delta_external = {}
+        reset_exchanges = {}
+        for mol_id, counts in exchanges.items():
+            delta_external[mol_id] += counts / (self.parameters['volume'] * AVOGADRO)
+            reset_exchanges[mol_id] = {
+                '_value': 0,
+                '_updater': 'set'}
+
+        return {
+            'external': delta_external,
+        }
+
+
 def run_cell(total_time=1000, parameters=None):
     cell = SimpleCell(parameters=parameters)
 
@@ -265,16 +314,16 @@ def test_scan_cell_o2_scaling():
     parameter_scan = {
         'o2_response_scaling': list(np.linspace(0,2.0,30)),
     }
-    results_array = scan_cell(total_time, parameter_scan)
+    detailed_results = scan_cell(total_time, parameter_scan)
 
-    for i, result in enumerate(results_array):
-        print(result)
+    for detailed_result in detailed_results:
+        result = detailed_result['results']
+        parameters = detailed_result['parameters']
         # plot results
-        filename = f'o2results_{i}.png'
-
+        filename = f'o2results_{parameters}.png'
         settings = {}
         plot_simulation_output(
-            results_array,
+            result,
             settings=settings,
             out_dir='out/o2/',
             filename=filename)
@@ -283,5 +332,5 @@ def test_scan_cell_o2_scaling():
 
 if __name__ == '__main__':
     # test_cell()
-    test_scan_cell_o2_lac()
-    # test_scan_cell_o2_scaling()
+    # test_scan_cell_o2_lac()
+    test_scan_cell_o2_scaling()
