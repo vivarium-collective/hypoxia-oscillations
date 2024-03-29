@@ -1,15 +1,11 @@
-import os
 import itertools
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize
-import matplotlib.cm as cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from vivarium.core.process import Process, Step
-from vivarium.core.engine import Engine, pf
+from vivarium.core.process import Process
+from vivarium.core.engine import Engine
 from vivarium.plots.simulation_output import plot_simulation_output
 from library.analyze import detect_oscillation_period
+from plots.scan import save_heat_map
 
 
 class SimpleCell(Process):
@@ -57,6 +53,7 @@ class SimpleCell(Process):
         'external_oxygen_initial': 1.1,
 
         # oxygen exchange
+        'o2_response_scaling': 1.0,
         'kmax_o2_deg': 1e-1,
         # 'HIF_threshold': 2.5,
         # 'hill_coeff_o2_deg': 10,
@@ -159,14 +156,13 @@ class SimpleCell(Process):
         dO2_ext = 0
         if oxygen_ex > 0:
             # TODO -- add parameter k_O2_consumption
-            dO2_ext = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (hif_in + 1)
+            dO2_ext = - self.parameters['o2_response_scaling'] * (self.parameters['k_min_o2_deg'] + self.parameters['kmax_o2_deg'] / (hif_in + 1))
             # dO2_ext = - self.parameters['k_min_o2_deg'] - self.parameters['kmax_o2_deg'] / (
             #         (hif_in / self.parameters['HIF_threshold'])**self.parameters['hill_coeff_o2_deg'] + 1)
 
         # convert dO2 and lactate transport from concentration to counts
         # TODO -- these should be ints
         dO2_ext *= self.conc_conversion['oxygen']
-        # dO2 = int(dO2)
         dLactate_ext = - lactate_transport * self.conc_conversion['lactate']
 
         # retrieve the results
@@ -216,8 +212,6 @@ def test_cell():
     }
 
     data = run_cell(total_time, parameters)
-    # # print results
-    # print(pf(data))
 
     # plot results
     settings = {}
@@ -225,100 +219,40 @@ def test_cell():
         data,
         settings=settings,
         out_dir='out',
-        filename='results'
-    )
+        filename='results')
     fig.show()
 
 
-def save_heat_map(results_array, parameter_scan, param1, param2,
-                  colormap='viridis', out_dir='out', filename='heatmap.png'):
-    # Calculate figure size based on array dimensions
-    array_height, array_width = results_array.shape
-    fig_width = max(6, array_width / 3)  # Ensure minimum size and scale with width
-    fig_height = max(4, array_height / 3)  # Ensure minimum size and scale with height
+def scan_cell(total_time, parameter_scan):
+    keys, values = zip(*parameter_scan.items())
+    detailed_results = []  # List to store both results and parameter values
 
-    # Extract the axis labels for the heatmap from the parameter_scan
-    x_axis_labels = [str(round(val, 2)) for val in parameter_scan[param1]]  # param1 values
-    y_axis_labels = [str(round(val, 2)) for val in parameter_scan[param2]]  # param2 values
+    for value_combination in itertools.product(*values):
+        parameters = dict(zip(keys, value_combination))
+        results = run_cell(total_time, parameters)
+        oscillation_period = detect_oscillation_period(results['internal_species']['GFP'])
 
-    # Generate the heatmap
-    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    cax = ax.imshow(results_array.T, cmap=colormap, origin='lower')
-    ax.set_xticks(np.arange(len(x_axis_labels)))
-    ax.set_yticks(np.arange(len(y_axis_labels)))
-    ax.set_xticklabels(x_axis_labels)
-    ax.set_yticklabels(y_axis_labels)
-    plt.xlabel(param1.replace('_', ' ').title())
-    plt.ylabel(param2.replace('_', ' ').title())
-    plt.title('Oscillation Period Heat Map', fontsize=14)
+        # Store the detailed result with parameters and the outcome
+        detailed_result = {
+            'parameters': parameters,
+            'results': results,
+            'oscillation_period': oscillation_period
+        }
+        detailed_results.append(detailed_result)
 
-    # Rotate the tick labels for better readability and adjust font size if necessary
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor", fontsize=10)
-    plt.setp(ax.get_yticklabels(), fontsize=10)
-
-    # Adjust the layout to make room for the colorbar
-    plt.tight_layout()
-
-    # Create a new axes for the colorbar to the right of the main axes
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    plt.colorbar(cm.ScalarMappable(cmap=colormap), cax=cax)
-
-    # Save the heatmap
-    os.makedirs(out_dir, exist_ok=True)
-    fig_path = os.path.join(out_dir, filename)
-    print(f"Writing {fig_path}")
-    fig.savefig(fig_path, bbox_inches='tight')
-    plt.close()
+    return detailed_results
 
 
-def test_scan_cell():
+def test_scan_cell_o2_lac():
     total_time = 1500
     parameter_scan = {
         'external_oxygen_initial': list(np.linspace(0,1.3,30)),
         'external_lactate_initial': list(np.linspace(0,2.6,15)),
     }
-    fig_labels = {
-        'external_oxygen_initial': 'O2',
-        'external_lactate_initial': 'Lac'
-    }
-
-    # Create a list of keys and a list of values lists
-    keys, values = zip(*parameter_scan.items())
-    results_shape = [len(v) for v in values]
-    results_array = np.zeros(shape=results_shape)
-
-    # Generate all combinations of parameter values
-    for value_combination in itertools.product(*values):
-        # Create a parameter dictionary for the current combination
-        parameters = dict(zip(keys, value_combination))
-
-        # Run the simulation with the current parameter combination
-        data = run_cell(total_time, parameters)
-
-        # Detect the oscillation period
-        result = detect_oscillation_period(data['internal_species']['GFP'])
-
-        # Get the indices for the current combination in the results array
-        indices = tuple(values.index(value) for value, values in zip(value_combination, values))
-
-        # Store the result in the corresponding location in the results array
-        results_array[indices] = result
-
-        # # plot results
-        # filename_parts = [f'{fig_labels.get(key, key)}_{format(value, ".4g").replace(".", "p")}' for key, value in
-        #                   zip(keys, value_combination)]
-        # filename = f'results_{"_".join(filename_parts)}_oscilations:{str(result).replace(".", "p")}'
-        #
-        # settings = {}
-        # plot_simulation_output(
-        #     data,
-        #     settings=settings,
-        #     out_dir='out',
-        #     filename=filename)
+    detailed_results = scan_cell(total_time, parameter_scan)
 
     save_heat_map(
-        results_array,
+        detailed_results,
         parameter_scan,
         'external_oxygen_initial',
         'external_lactate_initial',
@@ -326,6 +260,28 @@ def test_scan_cell():
         filename='heatmap.png')
 
 
+def test_scan_cell_o2_scaling():
+    total_time = 1500
+    parameter_scan = {
+        'o2_response_scaling': list(np.linspace(0,2.0,30)),
+    }
+    results_array = scan_cell(total_time, parameter_scan)
+
+    for i, result in enumerate(results_array):
+        print(result)
+        # plot results
+        filename = f'o2results_{i}.png'
+
+        settings = {}
+        plot_simulation_output(
+            results_array,
+            settings=settings,
+            out_dir='out/o2/',
+            filename=filename)
+
+
+
 if __name__ == '__main__':
     # test_cell()
-    test_scan_cell()
+    test_scan_cell_o2_lac()
+    # test_scan_cell_o2_scaling()
