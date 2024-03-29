@@ -2,6 +2,7 @@ import itertools
 import numpy as np
 
 from vivarium.core.process import Process, Step
+from vivarium.core.composer import Composer
 from vivarium.core.engine import Engine
 from vivarium.plots.simulation_output import plot_simulation_output
 from library.analyze import detect_oscillation_period
@@ -186,14 +187,14 @@ class SimpleCell(Process):
 
 class SimpleEnvironment(Step):
     defaults = {
-        'volume': 1.0,
+        'volume': 1E2,
     }
     def __init__(self, parameters=None):
         super().__init__(parameters)
 
     def ports_schema(self):
         return {
-            'exchanges': {
+            'exchange': {
                 'oxygen': {
                     '_default': 1.0,
                     '_emit': True,
@@ -216,18 +217,78 @@ class SimpleEnvironment(Step):
         }
 
     def next_update(self, _, states):
-        exchanges = states['exchanges']
+        exchange = states['exchange']
         delta_external = {}
-        reset_exchanges = {}
-        for mol_id, counts in exchanges.items():
-            delta_external[mol_id] += counts / (self.parameters['volume'] * AVOGADRO)
-            reset_exchanges[mol_id] = {
-                '_value': 0,
-                '_updater': 'set'}
+        reset_exchange = {}
+        for mol_id, counts in exchange.items():
+            if counts != 0:
+                delta_external[mol_id] = counts / self.parameters['volume']
+                reset_exchange[mol_id] = {
+                    '_value': 0,
+                    '_updater': 'set'}
 
         return {
             'external': delta_external,
+            'exchange': reset_exchange
         }
+
+
+class CellEnvironment(Composer):
+    defaults = {
+        'cell': {},
+        'environment': {},
+    }
+
+    def generate_processes(self, config):
+        cell = SimpleCell(config['cell'])
+        environment = SimpleEnvironment(config['environment'])
+        return {
+            'cell': cell,
+            'environment': environment,
+        }
+
+    def generate_topology(self, config):
+        return {
+            'cell': {
+                'boundary': ('boundary',),
+                'internal_species': ('internal_species',),
+            },
+            'environment': {
+                'exchange': ('boundary', 'exchange'),
+                'external': ('boundary', 'external'),
+            }
+        }
+
+
+def run_cell_env(total_time=1000, config=None):
+    config = config or {}
+
+    cell_env = CellEnvironment(config).generate()
+
+    sim = Engine(composite=cell_env)
+    sim.update(total_time)
+
+    return sim.emitter.get_timeseries()
+
+
+def test_cell_environment():
+    data = run_cell_env(
+        total_time=2500,
+        config={
+            'environment': {
+                'volume': 2E2
+            }
+    })
+    # print(data)
+
+    # plot results
+    settings = {}
+    fig = plot_simulation_output(
+        data,
+        settings=settings,
+        out_dir='out',
+        filename='results')
+    fig.show()
 
 
 def run_cell(total_time=1000, parameters=None):
@@ -333,4 +394,5 @@ def test_scan_cell_o2_scaling():
 if __name__ == '__main__':
     # test_cell()
     # test_scan_cell_o2_lac()
-    test_scan_cell_o2_scaling()
+    # test_scan_cell_o2_scaling()
+    test_cell_environment()

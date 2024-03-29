@@ -138,7 +138,6 @@ def run_cells1():
         density=0.9,
     )
 
-
     # plot fields
     n_snapshots = 6  # number of snapshots for temporal fields plot
     nth_timestep = int(total_time/(n_snapshots-1))
@@ -161,9 +160,49 @@ def run_cells1():
 
 
 def run_cell2():
-    pass
+    total_time = 600
+    # perturb_cell_parameters = {
+    #     'o2_response_scaling': {'loc': 0.0, 'scale': 0.25},
+    # }
+
+    data = run_cell_grid(
+        bounds=[5,5],
+        total_time=total_time,
+        # perturb_cell_parameters=perturb_cell_parameters,
+        cell_parameters={
+            'kmax_o2_deg': 1e0,
+            # 'k_lactate_production': 1e-1,
+        },
+        diffusion_constants={
+            'lactate': 1E-2,  # cm^2 / day
+            'oxygen': 1E-2,  # cm^2 / day
+        },
+        clamp_edges={
+            'oxygen': OXYGEN_CLAMP_VALUE
+        },
+        density=1.0,
+    )
+
+    # plot fields
+    n_snapshots = 6  # number of snapshots for temporal fields plot
+    nth_timestep = int(total_time / (n_snapshots - 1))
+    temporal_fig = plot_fields_temporal(
+        data['fields'],
+        nth_timestep=nth_timestep,
+        out_dir='out',
+        filename=f'composite_fields_temporal2'
+    )
+    temporal_fig.show()
+
+    # plot results
+    results_fig = plot_simulation_data(
+        data['cells'],
+        num_rows=DEFAULT_BOUNDS[0],
+        num_cols=DEFAULT_BOUNDS[1],
+        filename=f'results_by_cell2'
+    )
 
 
 if __name__ == '__main__':
-    run_cells1()
-    # run_cell2()
+    # run_cells1()
+    run_cell2()
