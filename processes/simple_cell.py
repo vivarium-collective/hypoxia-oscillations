@@ -35,7 +35,7 @@ class SimpleCell(Process):
         'k_HIF_pos_feedback': 1,  # k_px
         'k_HIF_deg_basal': 0.2,  # k_dx
         'k_HIF_deg_lactate': 1,  # k_dsx
-        'k_lactate_production': 0.01,  # k_sy
+        'k_lactate_production': 0.05,  # 0.01 k_sy
         'k_lactate_production_reg': 1,  # k_py
         'k_lactate_deg_basal': 0.01,  # k_dy
         'k_GFP_production_constantFP_production': 1,  # V_g
@@ -49,18 +49,15 @@ class SimpleCell(Process):
         'GFP_initial': 0.0,  #
 
         # TODO transport
-        'k_MCT1': 1E-3,  # lactate import
-        'k_MCT4': 1E-3,  # lactate export
+        'k_MCT1': 1E-3,  # 1E-3 lactate import
+        'k_MCT4': 1E-3,  # 1E-3 lactate export
 
         # oxygen consumption
-        # 'k_O2_consumption': 1.0,
         'external_oxygen_initial': 1.1,
 
         # oxygen exchange
         'o2_response_scaling': 1.0,
         'kmax_o2_deg': 1e-1,
-        # 'HIF_threshold': 2.5,
-        # 'hill_coeff_o2_deg': 10,
         'k_min_o2_deg': 1e-2
     }
 
@@ -291,6 +288,26 @@ def test_cell_environment():
     fig.show()
 
 
+def test_lac_env():
+    data = run_cell_env(
+        total_time=2500,
+        config={
+            'environment': {
+                'volume': 2E4
+            }
+        })
+    # print(data)
+
+    # plot results
+    settings = {}
+    fig = plot_simulation_output(
+        data,
+        settings=settings,
+        out_dir='out',
+        filename='lac_env_results')
+    fig.show()
+
+
 def run_cell(total_time=1000, parameters=None):
     cell = SimpleCell(parameters=parameters)
 
@@ -370,6 +387,35 @@ def test_scan_cell_o2_lac():
         filename='heatmap.png')
 
 
+def test_scan_cell_lac_hif():
+    total_time = 1500
+    parameter_scan = {
+        'k_HIF_pos_feedback': list(np.linspace(0, 1.8, 20)),
+        'external_lactate_initial': list(np.linspace(0, 1.5, 20)),
+    }
+    detailed_results = scan_cell(total_time, parameter_scan)
+
+    save_heat_map(
+        detailed_results,
+        parameter_scan,
+        'k_HIF_pos_feedback',
+        'external_lactate_initial',
+        out_dir='out',
+        filename='scan_lac_HIF_feedback.png')
+
+    for detailed_result in detailed_results:
+        result = detailed_result['results']
+        parameters = detailed_result['parameters']
+        # plot results
+        filename = f'{parameters}.png'
+        settings = {}
+        plot_simulation_output(
+            result,
+            settings=settings,
+            out_dir='out/lac_hif_pos/',
+            filename=filename)
+
+
 def test_scan_cell_o2_scaling():
     total_time = 1500
     parameter_scan = {
@@ -395,4 +441,6 @@ if __name__ == '__main__':
     # test_cell()
     # test_scan_cell_o2_lac()
     # test_scan_cell_o2_scaling()
-    test_cell_environment()
+    # test_cell_environment()
+    test_scan_cell_lac_hif()
+    # test_lac_env()

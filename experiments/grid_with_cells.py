@@ -177,9 +177,9 @@ def run_cell2():
             'lactate': 1E-2,  # cm^2 / day
             'oxygen': 1E-2,  # cm^2 / day
         },
-        clamp_edges={
-            'oxygen': OXYGEN_CLAMP_VALUE
-        },
+        # clamp_edges={
+        #     'oxygen': OXYGEN_CLAMP_VALUE
+        # },
         density=1.0,
     )
 
@@ -201,6 +201,7 @@ def run_cell2():
         num_cols=DEFAULT_BOUNDS[1],
         filename=f'results_by_cell2'
     )
+    results_fig.show()
 
 
 if __name__ == '__main__':

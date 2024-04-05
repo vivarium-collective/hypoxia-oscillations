@@ -1,0 +1,22 @@
+*.out
+out/
+.idea/
+*.iml
+/.coverage
+/.coverage.*
+
+# User files #
+################
+user/*
+!user/user.txt
+*.cprof
+Pipfile
+Pipfile.lock
+.vscode/*
+.env
+notebooks/.ipynb_checkpoints/
+.DS_Store
+.DS_Store?
+._*
+.python-version
+.pytest_cache
