@@ -35,7 +35,7 @@ class SimpleCell(Process):
         'k_HIF_pos_feedback': 1,  # k_px
         'k_HIF_deg_basal': 0.2,  # k_dx
         'k_HIF_deg_lactate': 1,  # k_dsx
-        'k_lactate_production': 0.05,  # 0.01 k_sy
+        'k_lactate_production': 0.01,  # 0.01 k_sy
         'k_lactate_production_reg': 1,  # k_py
         'k_lactate_deg_basal': 0.01,  # k_dy
         'k_GFP_production_constantFP_production': 1,  # V_g
